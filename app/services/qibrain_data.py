@@ -114,19 +114,50 @@ def get_bill_sponsors(bill_id):
 def get_bill_actions(bill_id):
     """
     Get actions/history for a bill, most recent first.
-    Replaces: legiscan_sync.sqlite history lookup.
-    Returns list of dicts.
+    Tries bill_actions (LegiScan-sourced) first, falls back to bill_events
+    (scraped from legislature.idaho.gov) when bill_actions is empty or has
+    fewer entries.
+    Returns list of dicts with keys: action_date, action, chamber, importance.
     """
     conn = get_qibrain_connection()
     try:
         with conn.cursor() as cur:
+            # Primary source: bill_actions (LegiScan)
             cur.execute("""
                 SELECT action_date::text AS action_date, action, chamber, importance
                 FROM bill_actions
                 WHERE bill_id = %s
                 ORDER BY action_date DESC, sequence DESC
             """, (bill_id,))
-            return [dict(r) for r in cur.fetchall()]
+            actions = [dict(r) for r in cur.fetchall()]
+
+            # Fallback: bill_events (legislature.idaho.gov scraper)
+            # Use bill_events if it has more data than bill_actions
+            cur.execute("""
+                SELECT event_date::text AS action_date, event_text AS action
+                FROM idaho.bill_events
+                WHERE bill_id = %s
+                ORDER BY event_date DESC, sequence_order DESC
+            """, (bill_id,))
+            events = cur.fetchall()
+
+            if events and len(events) > len(actions):
+                # bill_events has richer data — use it instead
+                cur.execute("SELECT bill_number FROM idaho.bills WHERE bill_id = %s", (bill_id,))
+                bill_row = cur.fetchone()
+                bn = bill_row["bill_number"] if bill_row else ""
+                chamber = "H" if bn.startswith("H") else "S" if bn.startswith("S") else ""
+                result = []
+                for e in events:
+                    result.append({
+                        "action_date": e["action_date"],
+                        "action": e["action"],
+                        "chamber": chamber,
+                        "importance": 1,
+                    })
+                return result
+
+            return actions
     finally:
         conn.close()
 

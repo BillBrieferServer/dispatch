@@ -264,19 +264,11 @@ def _build_sponsor_context(bill_id: int) -> str:
                                         })
                                         break
                                 else:
-                                    # Use raw SOP name without party/district
-                                    individuals.append({
-                                        'name': sc['raw_line'],
-                                        'party': '',
-                                        'district': '',
-                                    })
+                                    # No first-name match — likely not a legislator (agency contact)
+                                    pass
                             else:
-                                # No match found — include raw name
-                                individuals.append({
-                                    'name': sc['raw_line'],
-                                    'party': '',
-                                    'district': '',
-                                })
+                                # No match found — likely agency staff, not a legislator
+                                pass
 
                 if individuals:
                     contact_strs = []
@@ -640,14 +632,9 @@ def _build_sponsor_display(bill_id: int) -> dict:
                                 "chamber": resolved.get('chamber', '') or sc.get('title', '').replace('.', ''),
                             })
                         else:
-                            title = sc.get('title', '')
-                            ch = 'House' if 'Rep' in title else 'Senate' if 'Sen' in title else ''
-                            individuals.append({
-                                "raw_name": sc['raw_line'],
-                                "last_name": search_last,
-                                "district_num": '',
-                                "chamber": ch,
-                            })
+                            # No legislator match — likely agency staff (e.g. dept contact in SOP)
+                            # Skip: agency contacts don't have scores and shouldn't appear in S2
+                            pass
 
                 # Build contacts with scores
                 contacts = []

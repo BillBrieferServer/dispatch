@@ -64,12 +64,8 @@ SECTION 1 — BILL SUMMARY (bill_summary: string)
 - NEUTRALITY: Write like an AP wire report. Describe mechanics, not whether they are good or bad. Use "requires" not "imposes," "amends" not "weakens," "establishes" not "provides important protections." If the bill text goes beyond its Statement of Purpose, note the discrepancy factually.
 
 SECTION 2 — SPONSOR PROFILE (sponsor_profile: object)
-- You will receive structured sponsor data below
-- Write a "narrative" field: 2-3 sentences characterizing the sponsor's legislative profile
-- Include their IACI voting trend if scores are provided (trending pro-business? independent? declining?)
-- If committee-sponsored WITH named contacts in sponsor data: set name to the committee name, list the primary contacts in narrative, and include their IACI scores and bills this session. The individual contacts are the actual bill drivers.
-- If committee-sponsored with NO named contacts: set name to the committee name, narrative to "Committee-sponsored bill — no individual sponsor profile available."
-- Output: {{"name": "string", "chamber": "string", "district": "string", "bills_this_session": int, "iaci_scores": {{"2026": float, "2025": float, ...}}, "narrative": "string"}}
+- Sponsor data is displayed deterministically from database records. You do not need to generate narrative or analysis for this section.
+- Output: {{"name": "string", "chamber": "string", "district": "string"}}
 
 SECTION 5 — MOMENTUM (momentum: object)
 - You will receive structured momentum data below, including the full event timeline.
@@ -81,6 +77,7 @@ Trajectory categories (choose one):
   - "Stalled": No substantive action in 14+ days, stuck in committee with no hearing scheduled.
   - "At risk": Late in session with significant procedural hurdles remaining (e.g., needs full committee + floor votes in both chambers with limited days left).
   - "Dormant": Introduced but no substantive action beyond printing/referral — may be a placeholder or statement bill.
+  - "Dead": Bill failed a floor vote, was held in committee, or was returned to sponsor. No procedural pathway remains this session.
 
 Narrative: 3-5 sentences. REQUIRED structure:
   1. Current procedural position — where exactly is the bill right now? (e.g., "Filed for Third Reading in the House," "In Senate State Affairs with no hearing scheduled," "Crossed to the Senate after passing the House 51-17-2")
@@ -88,13 +85,19 @@ Narrative: 3-5 sentences. REQUIRED structure:
   3. Next procedural step — what must happen next for the bill to advance? (e.g., "Needs Second and Third Reading in the House," "Awaits Senate committee assignment")
   4. If a floor vote occurred, state the vote count without characterizing the margin.
 
-NEUTRALITY RULES:
+NEUTRALITY RULES — these are non-negotiable:
   - Do NOT predict political outcomes. No "dead on arrival," "insurmountable opposition," "no pathway forward," or "faces certain defeat."
   - Do NOT characterize legislative composition or committee ideology (e.g., "Republican-controlled committee").
+  - Do NOT characterize vote margins. State the count (e.g., "passed 36-33-1") without calling it "close," "narrow," "comfortable," or "overwhelming." Do not say a margin "indicates resistance," "shows support," or "suggests" anything about legislative sentiment.
+  - Do NOT speculate about internal committee dynamics. No "suggests potential complications," "indicates disagreement," or "signals competing priorities." If a bill has not moved, state the timeline factually: "No committee hearing scheduled in 26 days since referral." Full stop.
   - State procedural facts: what has happened, where the bill sits, what comes next. Let leadership draw their own political conclusions.
-  - If a bill has not moved, state the timeline factually: "No action in 26 days since committee referral" — not "the bill shows no signs of movement."
 
-- Output: {{"trajectory": "Advancing|Fast-tracked|Stalled|At risk|Dormant", "days_since_introduction": int, "hearing_status": "string", "narrative": "string"}}
+SELF-CHECK before finalizing narrative — ask yourself:
+  - Did I characterize any vote margin? Remove the characterization, keep the count.
+  - Did I speculate about WHY something happened or didn't happen? Remove the speculation, keep the fact.
+  - Did I use "suggests," "indicates," or "signals" about political dynamics? Rewrite as a factual statement.
+
+- Output: {{"trajectory": "Advancing|Fast-tracked|Stalled|At risk|Dormant|Dead", "days_since_introduction": int, "hearing_status": "string", "narrative": "string"}}
 
 RULES
 - Be direct. No hedging language. No "it should be noted" or "it is worth considering."

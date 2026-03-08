@@ -399,7 +399,12 @@ def format_full_briefer(
         if all_orgs:
             parts.append(f"SCORE_KEY: {' | '.join(all_orgs)}")
     else:
-        parts.append("(Sponsor data unavailable.)")
+        committee = sd.get("committee")
+        if committee:
+            parts.append(f"Committee-sponsored: {committee}")
+            parts.append("No individual legislator sponsor identified.")
+        else:
+            parts.append("(Sponsor data unavailable.)")
     parts.append("")
 
     # --- Section 3: Unintended Consequences ---
@@ -465,6 +470,9 @@ def format_full_briefer(
                 position = _norm_text(pos.get("position"))
                 detail = _norm_text(pos.get("position_detail"))
                 if org and position:
+                    # Normalize opaque position labels
+                    if position.lower().strip() == 'tag':
+                        position = 'tracking'
                     line = f"{org}: {position}"
                     # Strip redundant org prefix from detail (e.g. "IFF: +3" -> "+3")
                     if detail and org and detail.startswith(org + ":"):
@@ -479,7 +487,7 @@ def format_full_briefer(
                         # Not scored — show that context, no numeric score
                         line = f"{org}: {position}, not scored"
                         detail = None
-                    elif detail and detail.lower().strip() in (position.lower().strip(), 'monitor', 'neutral', 'under review', 'held in committee', 'tag'):
+                    elif detail and detail.lower().strip() in (position.lower().strip(), 'monitor', 'neutral', 'under review', 'held in committee', 'tag', 'tracking'):
                         # Pure redundancy — suppress
                         detail = None
                     if detail:
