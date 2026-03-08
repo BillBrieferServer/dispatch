@@ -49,6 +49,8 @@ def normalize_bill_number(raw: str) -> str | None:
         'Senate Concurrent Resolution': 'SCR',
         'House Joint Memorial': 'HJM',
         'Senate Joint Memorial': 'SJM',
+        'House Resolution': 'HR',
+        'Senate Resolution': 'SR',
     }
 
     for full_name, prefix in type_map.items():
@@ -70,7 +72,7 @@ def normalize_bill_number(raw: str) -> str | None:
         return _format_bill(prefix, num)
 
     # Short form: "H500", "S1263", "HJR103", "HJM9", etc.
-    m = re.match(r'^(HCR|SCR|HJR|SJR|HJM|SJM|H|S)\s*(\d+)$', s, re.IGNORECASE)
+    m = re.match(r'^(HCR|SCR|HJR|SJR|HJM|SJM|HR|SR|H|S)\s*(\d+)$', s, re.IGNORECASE)
     if m:
         prefix = m.group(1).upper()
         num = m.group(2)
