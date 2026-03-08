@@ -6,7 +6,7 @@ Sections:
   1. Bill Summary (AI)
   2. Sponsor Profile (AI + data)
   3. Unintended Consequences (module)
-  4. Power Flag (module)
+  4. Governance Impact (module)
   5. Momentum (AI + data)
   6. Advocacy Positions (deterministic)
   7. Legislative Activity (deterministic)
@@ -412,8 +412,8 @@ def format_full_briefer(
         parts.append("\u2022 No unintended consequences identified.")
     parts.append("")
 
-    # --- Section 4: Power Flag ---
-    parts.append("4. Power Flag")
+    # --- Section 4: Governance Impact ---
+    parts.append("4. Governance Impact")
     pf = ai.get("power_flag") or {}
     if isinstance(pf, dict):
         flag_level = _norm_text(pf.get("flag_level"))
