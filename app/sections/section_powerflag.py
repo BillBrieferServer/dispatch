@@ -22,7 +22,7 @@ SECTION_MAX_TOKENS = 1500
 MAX_RETRIES = 2
 
 VALID_FLAG_LEVELS = {"none", "low", "medium", "high"}
-VALID_DIRECTIONS = {"executive", "federal", "local-up", "local-down", "judicial", "none"}
+VALID_DIRECTIONS = {"executive", "federal", "judicial", "automatic", "none"}
 
 
 def _load_prompt() -> str:
@@ -32,20 +32,21 @@ def _load_prompt() -> str:
         with open(path, "r") as f:
             return f.read().strip()
     # Inline fallback
-    return """You are analyzing a bill for the Idaho Legislature, which is deeply protective of its institutional authority.
+    return """You are a legislative analyst for Idaho's House and Senate leadership.
 
-Analyze whether this bill shifts power or authority away from the legislature. Flag any of:
-- Delegates rulemaking or implementation authority to the governor or executive agencies
-- Creates federal funding dependency that brings federal oversight or strings
-- Preempts local government authority (cities, counties) — note direction: state taking FROM local
-- Pushes authority DOWN to local governments away from the legislature
-- Grants new authority to courts to interpret or expand the law
-- Creates sunset provisions or automatic reauthorization that bypasses legislative review
-- Expands or restricts initiative/referendum authority
+Does this bill transfer decision-making power away from the legislature?
+
+Flag if the bill:
+- Delegates rulemaking or implementation authority to executive agencies without guardrails
+- Creates federal funding dependency that could alter Idaho law without legislative action
+- Uses ambiguous terms that invite courts to define the law's scope
+- Creates programs or authority that continue without legislative reauthorization
+
+Do NOT flag: legislature mandating policy on local governments (that is exercising power, not losing it).
 
 flag_level: "none" / "low" / "medium" / "high"
-direction: "executive" / "federal" / "local-up" / "local-down" / "judicial" / "none"
-explanation: 1-3 sentences. If flag_level is "none", explanation = "No authority shift detected."
+direction: "executive" / "federal" / "judicial" / "automatic" / "none"
+explanation: 2-4 sentences citing specific provisions.
 
 Output JSON: {"power_flag": {"flag_level": "string", "direction": "string", "explanation": "string"}}"""
 
