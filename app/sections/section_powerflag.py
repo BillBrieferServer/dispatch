@@ -107,6 +107,7 @@ Analyze for authority shifts and generate the power_flag JSON."""
                 max_tokens=SECTION_MAX_TOKENS,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
+                temperature=0.5,
             )
 
             response_text = message.content[0].text

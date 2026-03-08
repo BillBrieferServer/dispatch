@@ -36,7 +36,7 @@ def _call_with_retry(
     max_tokens: int,
     messages: list,
     system: Optional[str] = None,
-    temperature: float = 0.7,
+    temperature: float = 0.6,
     max_retries: int = 3,
 ):
     """Call Anthropic API with exponential backoff retry for transient errors."""
