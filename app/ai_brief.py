@@ -36,7 +36,7 @@ ORG_FULL_NAMES = {
     "IACI": "Idaho Association of Commerce & Industry",
     "IFF": "Idaho Freedom Foundation",
     "IFBF": "Idaho Farm Bureau Federation",
-    "ACLU": "ACLU of Idaho",
+    "ACLU Idaho": "ACLU of Idaho",
     "CPAC": "CPAC Center for Legislative Accountability",
 }
 
@@ -585,7 +585,9 @@ def _build_sponsor_display(bill_id: int) -> dict:
                             WHERE l.last_name = %s AND l.district_id = %s AND l.is_active = true
                             ORDER BY ls.org_name, ls.year DESC
                         """, (ind['last_name'], ind['district_num']))
-                    else:
+                    score_rows = cur.fetchall()
+                    if not score_rows:
+                        # Fallback: district mismatch (seat vs legislative district)
                         cur.execute("""
                             SELECT ls.org_name, ls.vote_index, ls.year
                             FROM dispatch.legislator_scores ls
@@ -593,7 +595,7 @@ def _build_sponsor_display(bill_id: int) -> dict:
                             WHERE l.last_name = %s AND l.is_active = true
                             ORDER BY ls.org_name, ls.year DESC
                         """, (ind['last_name'],))
-                    score_rows = cur.fetchall()
+                        score_rows = cur.fetchall()
 
                     # Take most recent year per org
                     seen_orgs = set()
