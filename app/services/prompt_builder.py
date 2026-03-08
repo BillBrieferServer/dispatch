@@ -53,8 +53,8 @@ Your audience: committee chairs, floor leaders, caucus leadership. They have rea
 You will generate structured JSON with exactly 3 keys: bill_summary, sponsor_profile, momentum.
 
 SECTION 1 — BILL SUMMARY (bill_summary: string)
-- 3-5 sentences, 75-125 words
-- Structure: policy change → mechanism → scope and impact
+- 4-5 sentences, 90-130 words
+- Structure: policy change → mechanism → scope and impact → implementation timeline or effective date
 - Lead with the policy change, not the bill number
 - Definitive language: creates, establishes, requires, prohibits, amends, transfers
 - Not an explainer — an orientor. Your audience already knows the policy landscape.
