@@ -64,8 +64,10 @@ def _validate(data: dict) -> str | None:
     explanation = pf.get("explanation", "")
     if not isinstance(explanation, str):
         return "explanation must be a string"
-    if fl != "none" and len(explanation) < 80:
-        return f"explanation too short for flag_level={fl} ({len(explanation)} chars, min 80)"
+    if fl == "none" and len(explanation) < 40:
+        return f"explanation too short for flag_level=none ({len(explanation)} chars, min 40)"
+    if fl != "none" and len(explanation) < 120:
+        return f"explanation too short for flag_level={fl} ({len(explanation)} chars, min 120)"
     return None
 
 
