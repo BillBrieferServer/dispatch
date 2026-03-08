@@ -702,7 +702,7 @@ def check_stuck_jobs() -> None:
             try:
                 if email and email != "unknown":
                     fail_session = job_data.get("session_year", "")
-                    fail_subject = f"Bill Briefer: Unable to generate {bill}"
+                    fail_subject = f"Dispatch: Unable to generate {bill}"
                     fail_body = (
                         f"We were unable to generate your briefer for {bill}"
                         f" ({fail_session} Session).\n\n"
@@ -711,7 +711,7 @@ def check_stuck_jobs() -> None:
                         f"Please try your request again. If the problem persists, "
                         f"contact info@billbriefer.com and reference job ID: "
                         f"{job_id}.\n\n"
-                        f"Idaho Bill Briefer\n"
+                        f"Dispatch — Leadership Briefer\n"
                         f"A service of Quiet Impact"
                     )
                     send_email(email, fail_subject, fail_body)
@@ -722,7 +722,7 @@ def check_stuck_jobs() -> None:
             # Send alert if configured
             if ALERT_EMAIL and FROM_EMAIL and SMTP_HOST:
                 try:
-                    alert_subject = f"[ALERT] Bill Briefer Job Stuck: {bill}"
+                    alert_subject = f"[ALERT] Dispatch Job Stuck: {bill}"
                     alert_body = f"""A bill briefer job was stuck and has been automatically terminated.
 
 Job ID: {job_id}
@@ -734,7 +734,7 @@ Timeout: {JOB_TIMEOUT_MINUTES} minutes
 
 The job has been marked as failed. Please check the logs for more details.
 
-This is an automated alert from the Bill Briefer watchdog.
+This is an automated alert from the Dispatch watchdog.
 """
                     send_email(ALERT_EMAIL, alert_subject, alert_body)
                     logger.info(f"WATCHDOG: Alert sent to {ALERT_EMAIL}")
@@ -1145,7 +1145,7 @@ def _process_one_job_inner() -> None:
                     fail_bill = d.get("bill_input", d.get("bill", "unknown"))
                     fail_session = d.get("session_year", "")
                     if fail_email:
-                        fail_subject = f"Bill Briefer: Unable to generate {fail_bill}"
+                        fail_subject = f"Dispatch: Unable to generate {fail_bill}"
                         fail_body = (
                             f"We were unable to generate your briefer for {fail_bill}"
                             f" ({fail_session} Session).\n\n"
@@ -1154,7 +1154,7 @@ def _process_one_job_inner() -> None:
                             f"Please try your request again. If the problem persists, "
                             f"contact info@billbriefer.com and reference job ID: "
                             f"{d.get('job_id', 'unknown')}.\n\n"
-                            f"Idaho Bill Briefer\n"
+                            f"Dispatch — Leadership Briefer\n"
                             f"A service of Quiet Impact"
                         )
                         send_email(fail_email, fail_subject, fail_body)
