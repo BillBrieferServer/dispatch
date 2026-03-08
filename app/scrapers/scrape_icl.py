@@ -103,6 +103,17 @@ def fetch_all_cards():
 def scrape(dry_run=False):
     """Scrape ICL bill positions."""
     cards = fetch_all_cards()
+    # Deduplicate: ICL sometimes has duplicate article cards for the same bill
+    seen = set()
+    unique_cards = []
+    for card in cards:
+        key = card["raw_bill"]
+        if key not in seen:
+            seen.add(key)
+            unique_cards.append(card)
+    if len(cards) != len(unique_cards):
+        logger.info(f"ICL: {len(cards)} cards found, {len(cards) - len(unique_cards)} duplicates removed")
+    cards = unique_cards
     logger.info(f"ICL: {len(cards)} bill cards found")
 
     stats = {"found": len(cards), "matched": 0, "upserted": 0, "skipped": 0}
