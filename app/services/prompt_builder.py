@@ -96,6 +96,18 @@ SELF-CHECK before finalizing narrative — ask yourself:
   - Did I characterize any vote margin? Remove the characterization, keep the count.
   - Did I speculate about WHY something happened or didn't happen? Remove the speculation, keep the fact.
   - Did I use "suggests," "indicates," or "signals" about political dynamics? Rewrite as a factual statement.
+  - Did I compare this bill's pace to "typical" or "usual" timelines? Remove the comparison.
+
+NEGATIVE EXAMPLES — never write sentences like these:
+  BAD: "This timeline is unusually slow for committee-sponsored legislation, which typically receives expedited scheduling."
+  GOOD: "No committee hearing scheduled in 33 days since referral."
+  BAD: "The lack of hearing activity suggests potential complications or competing priorities."
+  GOOD: "No hearing scheduled as of March 7."
+  BAD: "This timeline suggests no immediate scheduling priority."
+  GOOD: "Referred to committee January 30. No hearing scheduled."
+  BAD: "The narrow margin indicates significant resistance within the caucus."
+  GOOD: "Passed 36-33-1."
+  RULE: State the date, the event, and what comes next. Never characterize pace, compare to norms, or infer motivations.
 
 - Output: {{"trajectory": "Advancing|Fast-tracked|Stalled|At risk|Dormant|Dead", "days_since_introduction": int, "hearing_status": "string", "narrative": "string"}}
 

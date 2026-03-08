@@ -12,6 +12,7 @@ Replaces: legiscan_sync.sqlite, LegiScan API calls, Census JSON files,
 import os
 import json
 import logging
+import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -149,9 +150,20 @@ def get_bill_actions(bill_id):
                 chamber = "H" if bn.startswith("H") else "S" if bn.startswith("S") else ""
                 result = []
                 for e in events:
+                    action_text = e["action"] or ""
+                    # Truncate vote roll call detail (AYES/NAYS name lists)
+                    # Keep the vote result line, strip the full roll call
+                    vote_match = re.match(
+                        r'(.*?(?:PASSED|FAILED|ADOPTED|REJECTED)\s*-\s*\d+-\d+(?:-\d+)?)',
+                        action_text
+                    )
+                    if vote_match:
+                        action_text = vote_match.group(1)
+                    elif len(action_text) > 200:
+                        action_text = action_text[:200].rstrip() + "..."
                     result.append({
                         "action_date": e["action_date"],
-                        "action": e["action"],
+                        "action": action_text,
                         "chamber": chamber,
                         "importance": 1,
                     })
