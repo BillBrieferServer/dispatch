@@ -474,6 +474,22 @@ def format_full_briefer(
             parts.append(f"\u26a1 COALITION ALERT: {coalition_alert}")
     else:
         parts.append("No advocacy organizations are currently tracking this bill.")
+
+    # Sources line for advocacy positions (matches Section 2 score key style)
+    if positions:
+        from app.ai_brief import ORG_FULL_NAMES
+        source_entries = []
+        seen_orgs = set()
+        for pos in positions:
+            if isinstance(pos, dict):
+                org = _norm_text(pos.get("org_name"))
+                if org and org not in seen_orgs:
+                    seen_orgs.add(org)
+                    full_name = ORG_FULL_NAMES.get(org, org)
+                    source_entries.append(f"{org} = {full_name}")
+        if source_entries:
+            parts.append("")
+            parts.append(f"SCORE_KEY: {' | '.join(source_entries)}")
     parts.append("")
 
     # --- Section 7: Legislative Activity ---
