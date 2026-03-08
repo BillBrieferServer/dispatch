@@ -4,6 +4,8 @@ PURPOSE: Leadership uses this section to prepare smart questions for committee h
 
 Generate 3-5 implementation concerns the bill text creates but does not address.
 
+CALIBRATION: Use 3 items for straightforward bills with limited drafting complexity. Use 4-5 only when the bill has multiple sections, interacting mechanisms, or genuinely distinct implementation gaps. Padding with weak or generic items dilutes the section's value to leadership. Three strong items beat five mediocre ones.
+
 WHAT TO LOOK FOR:
 
 1. DRAFTING GAPS: Undefined or ambiguous terms that will require interpretation. Sections that conflict with each other or with existing Idaho Code. Missing definitions that leave enforcement discretion unclear.

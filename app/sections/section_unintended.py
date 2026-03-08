@@ -90,7 +90,7 @@ BILL SUMMARY: {bill_summary}
 BILL TEXT:
 {bill_text[:15000]}
 
-Generate 3-5 unintended consequences as JSON."""
+Generate the appropriate number of unintended consequences (3-5) as JSON."""
 
     for attempt in range(MAX_RETRIES + 1):
         try:
