@@ -29,3 +29,4 @@ __pycache__/
 # OS
 .DS_Store
 \!app/data/statewide_context.json
+.env.*
