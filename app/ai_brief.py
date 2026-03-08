@@ -31,6 +31,15 @@ except ImportError:
     ANTHROPIC_AVAILABLE = False
     anthropic_generate = None
 
+# Full org names for score key display
+ORG_FULL_NAMES = {
+    "IACI": "Idaho Association of Commerce & Industry",
+    "IFF": "Idaho Freedom Foundation",
+    "IFBF": "Idaho Farm Bureau Federation",
+    "ACLU": "ACLU of Idaho",
+    "CPAC": "CPAC Center for Legislative Accountability",
+}
+
 # Import modules
 try:
     from app.sections.section_unintended import generate_unintended_consequences
@@ -619,6 +628,7 @@ def _build_sponsor_display(bill_id: int) -> dict:
                                 scores.append({
                                     "org": org,
                                     "pct": round(float(vi), 1),
+                                    "year": sr.get('year'),
                                 })
 
                     # Sort: IACI first, then alphabetically

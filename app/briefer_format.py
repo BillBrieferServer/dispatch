@@ -364,7 +364,8 @@ def format_full_briefer(
 
         # For single sponsor, append bills count on same line
         if len(contacts) == 1 and contacts[0].get("bills_this_session"):
-            name_parts[0] += f" | {contacts[0]['bills_this_session']} bills this session"
+            bc = contacts[0]['bills_this_session']
+            name_parts[0] += f" | {bc} {'bill' if bc == 1 else 'bills'} this session"
 
         parts.append(" | ".join(name_parts))
 
@@ -386,6 +387,30 @@ def format_full_briefer(
         parts.append("")
         if sp_narrative:
             parts.append(sp_narrative)
+
+        # Org score key — identify each abbreviation with full name and year
+        from app.ai_brief import ORG_FULL_NAMES
+        all_orgs = []
+        seen_key_orgs = set()
+        for c in contacts:
+            for s in c.get("scores", []):
+                org = s["org"]
+                if org not in seen_key_orgs:
+                    seen_key_orgs.add(org)
+                    full_name = ORG_FULL_NAMES.get(org, org)
+                    year = s.get("year")
+                    if org == "CPAC":
+                        year_label = "Lifetime"
+                    elif year:
+                        year_label = str(year)
+                    else:
+                        year_label = ""
+                    entry = f"{org} = {full_name}"
+                    if year_label:
+                        entry += f" ({year_label})"
+                    all_orgs.append(entry)
+        if all_orgs:
+            parts.append(f"Scores: {' | '.join(all_orgs)}")
     elif isinstance(sp, dict):
         # Fallback: use AI-generated fields if no display data
         sp_name = _norm_text(sp.get("name"))
