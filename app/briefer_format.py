@@ -570,7 +570,7 @@ def format_full_briefer(
     )
     parts.append("Data Sources")
     parts.append(
-        "Idaho Legislature (legislature.idaho.gov), LegiScan bill tracking, "
+        "Idaho Legislature (legislature.idaho.gov), "
         "IACI / IFF / IFBF / CPAC / ACLU Idaho legislator scorecards"
     )
     parts.append("Disclaimer")
