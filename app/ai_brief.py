@@ -109,6 +109,19 @@ def _parse_sop_contacts(sop_text: str) -> list:
     return names
 
 
+def _extract_district_num(district_str: str) -> str:
+    """Extract numeric district from formats like 'HD-011B', 'SD-019', '11', etc."""
+    if not district_str:
+        return ''
+    m = re.search(r'[HS]D-?(\d+)', district_str)
+    if m:
+        return str(int(m.group(1)))
+    m = re.search(r'(\d+)', district_str)
+    if m:
+        return str(int(m.group(1)))
+    return district_str
+
+
 def _build_sponsor_context(bill_id: int) -> str:
     """Assemble sponsor data from QIBrain for AI context."""
     try:
@@ -128,7 +141,8 @@ def _build_sponsor_context(bill_id: int) -> str:
 
         if not is_committee:
             # Individual sponsor — existing logic
-            lines = [f"Primary sponsor: {name} ({party}), District {district}"]
+            district_num = _extract_district_num(district)
+            lines = [f"Primary sponsor: {name} ({party}), District {district_num or district}"]
             conn = get_qibrain_connection()
             try:
                 with conn.cursor() as cur:
@@ -152,7 +166,7 @@ def _build_sponsor_context(bill_id: int) -> str:
                         )
                         AND org_name = 'IACI'
                         ORDER BY year DESC
-                    """, (last_name, district))
+                    """, (last_name, district_num))
                     scores = cur.fetchall()
                     if scores:
                         score_lines = []
