@@ -348,48 +348,30 @@ def format_full_briefer(
 
     # --- Section 2: Sponsor Profile ---
     parts.append("2. Sponsor Profile")
-    sp = ai.get("sponsor_profile") or {}
     sd = ai.get("sponsor_display") or {}
     contacts = sd.get("contacts", [])
-    sp_narrative = _norm_text(sp.get("narrative")) if isinstance(sp, dict) else ""
 
     if contacts:
-        # Name line: "Rep. Jordan Redman, LD3 | Rep. Jaron Crane, LD12"
-        name_parts = []
-        for c in contacts:
+        from app.ai_brief import ORG_FULL_NAMES
+
+        # One line per sponsor: "Rep. Name, LD4, IACI: 87%, IFF: 36%"
+        for idx, c in enumerate(contacts):
             label = f"{c.get('title', '')} {c['name']}".strip()
             if c.get('ld'):
                 label += f", {c['ld']}"
-            name_parts.append(label)
-
-        # For single sponsor, append bills count on same line
-        if len(contacts) == 1 and contacts[0].get("bills_this_session"):
-            bc = contacts[0]['bills_this_session']
-            name_parts[0] += f" | {bc} {'bill' if bc == 1 else 'bills'} this session"
-
-        parts.append(" | ".join(name_parts))
-
-        # Score line: "IACI: 38.0% | IFF: 97.4%" (per contact if multiple)
-        if len(contacts) == 1:
-            scores = contacts[0].get("scores", [])
+            scores = c.get("scores", [])
             if scores:
-                score_strs = [f"{s['org']}: {s['pct']}%" for s in scores]
-                parts.append(" | ".join(score_strs))
-        else:
-            # Multiple contacts — show scores per person
-            for c in contacts:
-                scores = c.get("scores", [])
-                if scores:
-                    c_label = c.get("ld") or c["name"].split()[-1]
-                    score_strs = [f"{s['org']}: {s['pct']}%" for s in scores]
-                    parts.append(f"{c_label}: {' | '.join(score_strs)}")
+                score_strs = [f"{s['org']}: {round(s['pct'])}%" for s in scores]
+                label += ", " + ", ".join(score_strs)
+            # Bills count for single sponsor only
+            if len(contacts) == 1 and c.get("bills_this_session"):
+                bc = c['bills_this_session']
+                label += f" | {bc} {'bill' if bc == 1 else 'bills'} this session"
+            parts.append(label)
 
         parts.append("")
-        if sp_narrative:
-            parts.append(sp_narrative)
 
-        # Org score key — identify each abbreviation with full name and year
-        from app.ai_brief import ORG_FULL_NAMES
+        # Score key: small italic, "(2025 Score)" format
         all_orgs = []
         seen_key_orgs = set()
         for c in contacts:
@@ -402,7 +384,7 @@ def format_full_briefer(
                     if org == "CPAC":
                         year_label = "Lifetime"
                     elif year:
-                        year_label = str(year)
+                        year_label = f"{year} Score"
                     else:
                         year_label = ""
                     entry = f"{org} = {full_name}"
@@ -410,16 +392,9 @@ def format_full_briefer(
                         entry += f" ({year_label})"
                     all_orgs.append(entry)
         if all_orgs:
-            parts.append(f"Scores: {' | '.join(all_orgs)}")
-    elif isinstance(sp, dict):
-        # Fallback: use AI-generated fields if no display data
-        sp_name = _norm_text(sp.get("name"))
-        if sp_name:
-            parts.append(sp_name)
-        if sp_narrative:
-            parts.append(sp_narrative)
+            parts.append(f"SCORE_KEY: {' | '.join(all_orgs)}")
     else:
-        parts.append(_norm_text(sp) or "(Sponsor data unavailable.)")
+        parts.append("(Sponsor data unavailable.)")
     parts.append("")
 
     # --- Section 3: Unintended Consequences ---

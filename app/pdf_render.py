@@ -524,6 +524,13 @@ def _parse_briefer_text(body_text: str) -> List[Tuple[str, str]]:
             i += 1
             continue
 
+        # Score key line — small italic rendering
+        if stripped.startswith("SCORE_KEY:"):
+            key_text = stripped.replace("SCORE_KEY: ", "").replace("SCORE_KEY:", "")
+            segments.append(("score_key", key_text.strip()))
+            i += 1
+            continue
+
         # Coalition Alert line — render with visual prominence
         if stripped.startswith("⚡ COALITION ALERT:") or stripped.startswith("COALITION ALERT:"):
             segments.append(("coalition_alert", stripped))
@@ -824,6 +831,21 @@ def render_briefer_pdf(
                 ))
             else:
                 story.append(Paragraph(_escape_html(content), styles['IBB_SectionHeader']))
+            continue
+
+        if seg_type == "score_key":
+            flush_kv_table()
+            score_key_style = ParagraphStyle(
+                'IBB_ScoreKey',
+                parent=styles['Normal'],
+                fontName='Helvetica-Oblique',
+                fontSize=8,
+                textColor=HexColor("#666666"),
+                spaceBefore=2,
+                spaceAfter=4,
+                leading=11,
+            )
+            story.append(Paragraph(f"Scores: {_escape_html(content)}", score_key_style))
             continue
 
         if seg_type == "coalition_alert":
