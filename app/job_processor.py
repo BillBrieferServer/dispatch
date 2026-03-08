@@ -923,20 +923,6 @@ def _process_one_job_inner() -> None:
         ]
         search_text = " ".join(str(p) for p in search_text_parts)
 
-        # Classify topic from bill metadata
-        bill_topic = classify_bill_topic(None, bill_obj)  # Pass None for ai_json since we don't have it yet
-        census_ctx = {"enabled": False, "content": "", "source": ""}
-
-        # Fetch census context for relevant topics
-        excluded_topics = ("administrative", "other", "political", "criminal_justice", "transportation",
-                          "higher_education", "healthcare_admin", "economic", "property")
-        if bill_topic not in excluded_topics:
-            try:
-                state_snapshot = get_state_snapshot()
-                census_ctx = format_census_context(bill_topic, state_snapshot, search_text)
-            except Exception:
-                pass
-
         # Fetch fiscal note: QIBrain first, LegiScan fallback
         fiscal_note = _fetch_fiscal_note_with_fallback(qibrain_bill_id, bill_obj, display_bill)
 
@@ -957,7 +943,6 @@ def _process_one_job_inner() -> None:
             bill_number=display_bill,
             legiscan_bill=bill_payload,
             bill_text=bill_text,
-            census_context=census_ctx,
             fiscal_note_text=fiscal_note_text,
             bill_id=bill_id_for_cache,
             session_id=session_id_for_cache,
@@ -983,36 +968,13 @@ def _process_one_job_inner() -> None:
 
         if not ai_json:
             ai_json = {
-                "one_paragraph_summary": "",
-                "key_points": [],
-                "who_it_affects": [],
-                "potential_impacts": {"pros": [], "cons": [], "unknowns": []},
-                "floor_statement_pro": "",
-                "floor_statement_con": "",
-                "talking_points_for": [],
-                "talking_points_against": [],
-                "questions_to_ask": [],
-                "risk_flags": [f"AI unavailable ({ai_model}): {ai_err or 'unknown error'}"],
+                "bill_summary": f"AI unavailable ({ai_model}): {ai_err or 'unknown error'}",
+                "sponsor_profile": {},
+                "momentum": {},
+                "unintended_consequences": ["AI generation failed — review manually."],
+                "power_flag": {"flag_level": "none", "direction": "none", "explanation": "Module generation failed."},
+                "advocacy_positions": {"positions": [], "coalition_alert": None, "count": 0},
             }
-
-        # Re-classify with AI analysis for more accurate topic detection
-        # (AI summary may reveal topic better than just title/description)
-        bill_topic_refined = classify_bill_topic(ai_json, bill_obj)
-        if bill_topic_refined != bill_topic and bill_topic_refined not in excluded_topics:
-            # Topic changed after AI analysis - update census context if now relevant
-            try:
-                if not census_ctx.get("enabled"):
-                    state_snapshot = get_state_snapshot()
-                    search_text_refined = " ".join([
-                        ai_json.get("one_paragraph_summary", ""),
-                        " ".join(ai_json.get("key_points", [])),
-                        bill_obj.get("title", ""),
-                    ])
-                    census_ctx = format_census_context(bill_topic_refined, state_snapshot, search_text_refined)
-            except Exception:
-                pass
-
-        census_text = census_ctx  # Dict with enabled, content, source
 
         # Demo override: use demo_name and demo_district if present
         _is_demo = job_data.get("is_demo", False)
@@ -1131,7 +1093,7 @@ def _process_one_job_inner() -> None:
             bill_number=display_bill,
             bill_obj=bill_obj,
             ai_json=ai_json,
-            census_text=census_text,
+    
             session_label=session_label,
             requester_name=requester_name,
             requester_email=email_clean,

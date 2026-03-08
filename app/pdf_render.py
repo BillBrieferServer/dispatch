@@ -390,14 +390,12 @@ def _parse_briefer_text(body_text: str) -> List[Tuple[str, str]]:
     timestamp_re = re.compile(r"^\d{2}/\d{2}/\d{4}\s+\d{1,2}:\d{2}[AP]M$")
 
     sub_headers = {
-        "key changes in law/policy",
-        "potential benefits",
-        "potential concerns",
-        "key unknowns / data needed",
-        "pro argument (sample statement):",
-        "con argument (sample statement):",
-        "talking points for (what supporters may argue):",
-        "talking points against (what critics may argue):",
+        "iaci scores",
+        "bills this session",
+        "authority shift",
+        "direction",
+        "explanation",
+        "coalition alert",
         "sponsors",
         "committee path",
         "bill history/actions",
@@ -523,6 +521,12 @@ def _parse_briefer_text(body_text: str) -> List[Tuple[str, str]]:
             segments.append(("section_header", f"{num}. {title}"))
             current_section = title.lower().strip()
             in_floor_statement = False
+            i += 1
+            continue
+
+        # Coalition Alert line — render with visual prominence
+        if stripped.startswith("⚡ COALITION ALERT:") or stripped.startswith("COALITION ALERT:"):
+            segments.append(("coalition_alert", stripped))
             i += 1
             continue
 
@@ -820,6 +824,25 @@ def render_briefer_pdf(
                 ))
             else:
                 story.append(Paragraph(_escape_html(content), styles['IBB_SectionHeader']))
+            continue
+
+        if seg_type == "coalition_alert":
+            flush_kv_table()
+            # Red background box for coalition alert — highest-value signal
+            alert_style = ParagraphStyle(
+                'CoalitionAlert',
+                parent=styles['IBB_Body'],
+                fontSize=11,
+                textColor=colors.HexColor('#991B1B'),
+                backColor=colors.HexColor('#FEF2F2'),
+                borderColor=colors.HexColor('#DC2626'),
+                borderWidth=1,
+                borderPadding=(6, 8, 6, 8),
+                spaceBefore=8,
+                spaceAfter=8,
+                leading=14,
+            )
+            story.append(Paragraph(f"<b>{_escape_html(content)}</b>", alert_style))
             continue
 
         if seg_type == "sub_header":

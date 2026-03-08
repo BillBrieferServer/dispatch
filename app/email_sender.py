@@ -119,18 +119,8 @@ def plain_text_to_html(s: str) -> str:
             flush_kv(); close_ul()
             out.append(f"<div style='text-align:left;font-size:11px;font-style:italic;color:#666;margin:0 0 2px 0;'>{esc(t)}</div>")
             continue
-        # Section 5 subheaders - bold them
-        if t in ("Potential Benefits", "Potential Concerns", "Key Unknowns / Data Needed"):
-            flush_kv(); close_ul()
-            out.append(f"<div style='font-weight:bold;color:#333;margin:12px 0 6px 0;'>{esc(t)}</div>")
-            continue
-        # Section 6 subheaders - bold them
-        if t in ("Pro Argument (Sample Statement):", "Con Argument (Sample Statement):", "Talking Points FOR (what supporters may argue):", "Talking Points AGAINST (what critics may argue):"):
-            flush_kv(); close_ul()
-            out.append(f"<div style='font-weight:bold;color:#333;margin:12px 0 6px 0;'>{esc(t)}</div>")
-            continue
-        # Section 3 subheaders - bold them
-        if t == "Key Changes in Law/Policy":
+        # Dispatch subheaders - bold them
+        if t in ("IACI Scores", "Bills This Session", "Authority Shift", "Direction", "Explanation"):
             flush_kv(); close_ul()
             out.append(f"<div style='font-weight:bold;color:#333;margin:12px 0 6px 0;'>{esc(t)}</div>")
             continue
@@ -139,6 +129,11 @@ def plain_text_to_html(s: str) -> str:
         if t in ("Roll Calls", "Vote Record", "Committee Path"):
             flush_kv(); close_ul()
             out.append(f"<h3 style='font-size:14px;margin:14px 0 8px 0;color:#222;'><strong>{esc(t)}</strong></h3>")
+            continue
+        # Coalition Alert - highlight in red/orange for visual prominence
+        if t.startswith("⚡ COALITION ALERT:") or t.startswith("COALITION ALERT:"):
+            flush_kv(); close_ul()
+            out.append(f"<div style='font-weight:bold;color:#c53030;background:#fff5f5;border-left:4px solid #c53030;padding:8px 12px;margin:12px 0;'>{esc(t)}</div>")
             continue
         # Section 10 similar bill headers - bold them (e.g., "California SB64 (2025) - SIGNED INTO LAW")
         similar_bill_re = re.compile(r"^([A-Za-z][A-Za-z ]+)\s+([A-Z]+\d+)\s+\((\d{4})\)\s+-\s+(.+)$")
