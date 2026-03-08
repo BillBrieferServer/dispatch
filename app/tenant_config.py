@@ -17,11 +17,11 @@ BASE_DIR = os.path.dirname(__file__)
 
 DEFAULTS = {
     "tenant_id": "base",
-    "org_name": "Idaho Bill Briefer",
-    "org_full_name": "Idaho Bill Briefer",
-    "tagline": "Informed legislators craft better policy. Better policy serves everyone.",
-    "header_format": "IDAHO BILL BRIEFER — {session_year} SESSION",
-    "footer_line": "Idaho Bill Briefer — from Quiet Impact • info@billbriefer.com",
+    "org_name": "Dispatch",
+    "org_full_name": "Dispatch",
+    "tagline": "Legislative intelligence for Idaho leadership.",
+    "header_format": "DISPATCH — {session_year} SESSION",
+    "footer_line": "Dispatch — from Quiet Impact",
     "disclaimer_audience": "legislators",
 }
 
