@@ -466,6 +466,9 @@ def format_full_briefer(
                 detail = _norm_text(pos.get("position_detail"))
                 if org and position:
                     line = f"{org}: {position}"
+                    # Strip redundant org prefix from detail (e.g. "IFF: +3" -> "+3")
+                    if detail and org and detail.startswith(org + ":"):
+                        detail = detail[len(org)+1:].strip()
                     if detail:
                         line += f" \u2014 {detail}"
                     parts.append(line)
