@@ -349,36 +349,48 @@ def format_full_briefer(
     # --- Section 2: Sponsor Profile ---
     parts.append("2. Sponsor Profile")
     sp = ai.get("sponsor_profile") or {}
-    if isinstance(sp, dict):
+    sd = ai.get("sponsor_display") or {}
+    contacts = sd.get("contacts", [])
+    sp_narrative = _norm_text(sp.get("narrative")) if isinstance(sp, dict) else ""
+
+    if contacts:
+        # Name line: "Rep. Jordan Redman, LD3 | Rep. Jaron Crane, LD12"
+        name_parts = []
+        for c in contacts:
+            label = f"{c.get('title', '')} {c['name']}".strip()
+            if c.get('ld'):
+                label += f", {c['ld']}"
+            name_parts.append(label)
+
+        # For single sponsor, append bills count on same line
+        if len(contacts) == 1 and contacts[0].get("bills_this_session"):
+            name_parts[0] += f" | {contacts[0]['bills_this_session']} bills this session"
+
+        parts.append(" | ".join(name_parts))
+
+        # Score line: "IACI: 38.0% | IFF: 97.4%" (per contact if multiple)
+        if len(contacts) == 1:
+            scores = contacts[0].get("scores", [])
+            if scores:
+                score_strs = [f"{s['org']}: {s['pct']}%" for s in scores]
+                parts.append(" | ".join(score_strs))
+        else:
+            # Multiple contacts — show scores per person
+            for c in contacts:
+                scores = c.get("scores", [])
+                if scores:
+                    c_label = c.get("ld") or c["name"].split()[-1]
+                    score_strs = [f"{s['org']}: {s['pct']}%" for s in scores]
+                    parts.append(f"{c_label}: {' | '.join(score_strs)}")
+
+        parts.append("")
+        if sp_narrative:
+            parts.append(sp_narrative)
+    elif isinstance(sp, dict):
+        # Fallback: use AI-generated fields if no display data
         sp_name = _norm_text(sp.get("name"))
-        sp_chamber = _norm_text(sp.get("chamber"))
-        sp_district = _norm_text(sp.get("district"))
-        sp_bills = sp.get("bills_this_session", 0)
-        sp_narrative = _norm_text(sp.get("narrative"))
-
         if sp_name:
-            sponsor_line = f"Sponsor: {sp_name}"
-            if sp_chamber:
-                sponsor_line += f" ({sp_chamber})"
-            if sp_district:
-                sponsor_line += f", District {sp_district}"
-            parts.append(sponsor_line)
-
-        if sp_bills:
-            parts.append(f"Bills This Session: {sp_bills}")
-
-        iaci = sp.get("iaci_scores")
-        if isinstance(iaci, dict) and iaci:
-            parts.append("IACI Scores")
-            for year, score_data in sorted(iaci.items(), reverse=True):
-                if isinstance(score_data, dict):
-                    score = score_data.get("score", "")
-                    possible = score_data.get("possible_score", "")
-                    index = score_data.get("vote_index", "")
-                    parts.append(f"  {year}: {score}/{possible} (index: {index})")
-                else:
-                    parts.append(f"  {year}: {score_data}")
-
+            parts.append(sp_name)
         if sp_narrative:
             parts.append(sp_narrative)
     else:

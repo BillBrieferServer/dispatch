@@ -445,6 +445,204 @@ def _get_advocacy_positions(bill_id: int) -> dict:
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
+
+
+def _build_sponsor_display(bill_id: int) -> dict:
+    """
+    Build deterministic sponsor display data for Section 2 rendering.
+
+    Returns: {
+        "contacts": [
+            {"name": "Jordan Redman", "title": "Rep.", "ld": "LD3",
+             "bills_this_session": 4,
+             "scores": [{"org": "IACI", "pct": 38.2}, ...]},
+            ...
+        ],
+        "committee": "Business Committee" or None,
+        "chamber": "House" or "Senate",
+    }
+    """
+    if not bill_id:
+        return {"contacts": [], "committee": None, "chamber": ""}
+
+    try:
+        from app.services.qibrain_data import get_bill_sponsors, get_qibrain_connection
+        sponsors = get_bill_sponsors(bill_id)
+        if not sponsors:
+            return {"contacts": [], "committee": None, "chamber": ""}
+
+        primary = sponsors[0]
+        name = primary.get("name", "Unknown")
+        first_name = primary.get("first_name", "")
+        party = primary.get("party", "")
+        district = primary.get("district", "")
+        role = primary.get("role", "")
+
+        # Determine chamber from role field
+        chamber = ""
+        if role:
+            role_lower = role.lower()
+            if "rep" in role_lower:
+                chamber = "House"
+            elif "sen" in role_lower:
+                chamber = "Senate"
+
+        is_committee = not first_name and not party
+
+        conn = get_qibrain_connection()
+        try:
+            with conn.cursor() as cur:
+                individuals = []
+
+                if not is_committee:
+                    # Individual sponsor
+                    district_num = _extract_district_num(district)
+                    individuals.append({
+                        "raw_name": name,
+                        "last_name": primary.get("last_name", ""),
+                        "district_num": district_num,
+                        "chamber": chamber,
+                    })
+                else:
+                    # Committee — find individuals from cosponsors or SOP
+                    cur.execute("""
+                        SELECT bc.legislator_name, l.party, l.district_id,
+                               CASE WHEN l.chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
+                        FROM idaho.bill_cosponsors bc
+                        LEFT JOIN idaho.legislators l ON l.legislator_id = bc.legislator_id
+                        WHERE bc.bill_id = %s
+                        ORDER BY bc.id
+                    """, (bill_id,))
+                    cosponsors = cur.fetchall()
+
+                    if cosponsors:
+                        for cs in cosponsors:
+                            parts = (cs['legislator_name'] or '').split()
+                            individuals.append({
+                                "raw_name": cs['legislator_name'],
+                                "last_name": parts[-1] if parts else '',
+                                "district_num": str(cs.get('district_id', '')),
+                                "chamber": cs.get('chamber', chamber),
+                            })
+                    else:
+                        # Parse SOP
+                        cur.execute("SELECT sop_text FROM idaho.bills WHERE bill_id = %s", (bill_id,))
+                        row = cur.fetchone()
+                        sop_text = row['sop_text'] if row and row.get('sop_text') else ''
+                        sop_contacts = _parse_sop_contacts(sop_text)
+                        for sc in sop_contacts:
+                            full = sc['full_name']
+                            parts = full.split()
+                            search_last = parts[-1] if parts else ''
+                            search_first = parts[0] if parts else ''
+                            # Resolve to legislator
+                            cur.execute("""
+                                SELECT first_name, last_name, district_id,
+                                       CASE WHEN chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
+                                FROM idaho.legislators
+                                WHERE last_name = %s AND is_active = true
+                                ORDER BY district_id
+                            """, (search_last,))
+                            matches = cur.fetchall()
+                            resolved = None
+                            if len(matches) == 1:
+                                resolved = matches[0]
+                            elif len(matches) > 1:
+                                for m in matches:
+                                    if m['first_name'] and m['first_name'].lower().startswith(search_first.lower()):
+                                        resolved = m
+                                        break
+                            if resolved:
+                                individuals.append({
+                                    "raw_name": f"{resolved['first_name']} {resolved['last_name']}",
+                                    "last_name": resolved['last_name'],
+                                    "district_num": str(resolved.get('district_id', '')),
+                                    "chamber": resolved.get('chamber', '') or sc.get('title', '').replace('.', ''),
+                                })
+                            else:
+                                title = sc.get('title', '')
+                                ch = 'House' if 'Rep' in title else 'Senate' if 'Sen' in title else ''
+                                individuals.append({
+                                    "raw_name": sc['raw_line'],
+                                    "last_name": search_last,
+                                    "district_num": '',
+                                    "chamber": ch,
+                                })
+
+                # Build contacts with scores
+                contacts = []
+                for ind in individuals:
+                    title = "Rep." if ind.get("chamber") == "House" else "Sen." if ind.get("chamber") == "Senate" else ""
+                    ld = f"LD{ind['district_num']}" if ind.get('district_num') else ""
+
+                    # Count bills this session
+                    bills_count = 0
+                    cur.execute("""
+                        SELECT count(*) as cnt FROM idaho.bills b
+                        JOIN bill_sponsors bs ON b.bill_id = bs.bill_id
+                        WHERE (bs.name = %s OR bs.name LIKE %s)
+                        AND bs.sponsor_order = 1
+                        AND b.legiscan_session_id = 2246
+                    """, (ind['raw_name'], f"%{ind['raw_name']}%"))
+                    row = cur.fetchone()
+                    if row:
+                        bills_count = row['cnt']
+
+                    # Get ALL org scores for this legislator (most recent year only)
+                    scores = []
+                    if ind.get('district_num'):
+                        cur.execute("""
+                            SELECT ls.org_name, ls.vote_index, ls.year
+                            FROM dispatch.legislator_scores ls
+                            JOIN idaho.legislators l ON l.legislator_id = ls.legislator_id
+                            WHERE l.last_name = %s AND l.district_id = %s AND l.is_active = true
+                            ORDER BY ls.org_name, ls.year DESC
+                        """, (ind['last_name'], ind['district_num']))
+                    else:
+                        cur.execute("""
+                            SELECT ls.org_name, ls.vote_index, ls.year
+                            FROM dispatch.legislator_scores ls
+                            JOIN idaho.legislators l ON l.legislator_id = ls.legislator_id
+                            WHERE l.last_name = %s AND l.is_active = true
+                            ORDER BY ls.org_name, ls.year DESC
+                        """, (ind['last_name'],))
+                    score_rows = cur.fetchall()
+
+                    # Take most recent year per org
+                    seen_orgs = set()
+                    for sr in score_rows:
+                        org = sr['org_name']
+                        if org not in seen_orgs:
+                            seen_orgs.add(org)
+                            vi = sr.get('vote_index')
+                            if vi is not None:
+                                scores.append({
+                                    "org": org,
+                                    "pct": round(float(vi), 1),
+                                })
+
+                    # Sort: IACI first, then alphabetically
+                    scores.sort(key=lambda s: (0 if s['org'] == 'IACI' else 1, s['org']))
+
+                    contacts.append({
+                        "name": ind['raw_name'],
+                        "title": title,
+                        "ld": ld,
+                        "bills_this_session": bills_count,
+                        "scores": scores,
+                    })
+
+                return {
+                    "contacts": contacts,
+                    "committee": name if is_committee else None,
+                    "chamber": chamber,
+                }
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to build sponsor display: {e}")
+        return {"contacts": [], "committee": None, "chamber": ""}
+
 def build_ai_brief(
     *,
     bill_number: str,
@@ -474,6 +672,7 @@ def build_ai_brief(
             result = cached["ai_json"]
             # Always pull fresh advocacy positions (S6)
             result["advocacy_positions"] = _get_advocacy_positions(bill_id)
+            result["sponsor_display"] = _build_sponsor_display(bill_id)
             return result, None, "cached", False, {}
         else:
             stale = get_cached_briefing(bill_id, None)
@@ -563,6 +762,11 @@ def build_ai_brief(
             "direction": "none",
             "explanation": "Module generation failed — review manually.",
         }
+
+    # --- Sponsor Display (deterministic, always fresh) ---
+    result["sponsor_display"] = _build_sponsor_display(bill_id) if bill_id else {
+        "contacts": [], "committee": None, "chamber": "",
+    }
 
     # --- S6: Advocacy Positions (always fresh) ---
     result["advocacy_positions"] = _get_advocacy_positions(bill_id) if bill_id else {
