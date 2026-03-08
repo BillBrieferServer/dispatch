@@ -469,9 +469,16 @@ def format_full_briefer(
                     # Strip redundant org prefix from detail (e.g. "IFF: +3" -> "+3")
                     if detail and org and detail.startswith(org + ":"):
                         detail = detail[len(org)+1:].strip()
-                    # Suppress detail if it just repeats the position (e.g. "support" / "Support")
-                    if detail and detail.lower().strip() in (position.lower().strip(), position.lower().strip() + " and score"):
-                        detail = None
+                    # Strip scoring metadata (e.g. "Support and Score" -> "Support",
+                    # "Oppose, not Scored" -> "Oppose", "Oppose and Score*" -> "Oppose")
+                    if detail:
+                        import re
+                        cleaned = re.sub(r'[,\s]+(and|not)\s+scored?\*?', '', detail, flags=re.IGNORECASE).strip()
+                        # If after stripping metadata the detail just repeats the position, suppress it
+                        if cleaned.lower() in (position.lower(), 'monitor', 'neutral', 'under review', 'held in committee', 'tag'):
+                            detail = None
+                        else:
+                            detail = cleaned
                     if detail:
                         line += f" \u2014 {detail}"
                     parts.append(line)
