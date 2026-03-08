@@ -14,4 +14,6 @@ Do NOT duplicate items from the bill's fiscal note or statement of purpose.
 
 No item may begin with "The bill" or "This bill."
 
+EMERGENCY CLAUSE NOTE: Idaho's emergency clause is routine procedural boilerplate (Art. III, Sec. 22) — a calendaring tool present on a large percentage of bills. Do NOT treat it as an unintended consequence or flag it as notable. Only mention implementation timing if there is a genuine conflict between the effective date and what the bill requires.
+
 Output JSON: {"unintended_consequences": ["string", "string", ...]}

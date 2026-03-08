@@ -13,4 +13,6 @@ flag_level: "none" / "low" / "medium" / "high"
 direction: "executive" / "federal" / "local-up" / "local-down" / "judicial" / "none"
 explanation: 1-3 sentences. If flag_level is "none", explanation = "No authority shift detected."
 
+EMERGENCY CLAUSE NOTE: Idaho's emergency clause is routine procedural boilerplate (Art. III, Sec. 22) — a calendaring tool, not an authority shift. Do NOT flag it as an authority or power shift. Only note implementation timing if there is a genuine conflict.
+
 Output JSON: {"power_flag": {"flag_level": "string", "direction": "string", "explanation": "string"}}

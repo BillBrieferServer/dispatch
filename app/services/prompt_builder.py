@@ -82,5 +82,6 @@ RULES
 - Do not repeat the bill number in every sentence.
 - Cite specific provisions by section number when relevant.
 - Do not editorialize. Describe mechanics, not whether they are good or bad.
+- EMERGENCY CLAUSE: Under Idaho Constitution Art. III, Sec. 22, bills take effect July 1 following passage unless an emergency clause is included. The emergency clause is routine procedural boilerplate — present on a large percentage of Idaho bills as a calendaring tool, not a signal of genuine urgency or crisis. Do NOT surface it as a notable feature, flag, or analytical point. If a genuine implementation timing conflict exists (e.g., effective date contradicts a phased rollout), note the conflict on its merits without highlighting the emergency clause itself.
 {fiscal_block}{sponsor_block}{momentum_block}
 Output valid JSON matching the schema exactly. No markdown, no code fences."""
