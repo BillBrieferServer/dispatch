@@ -132,15 +132,16 @@ def upsert_position(conn, bill_id: int, org_name: str, position: str,
 def upsert_legislator_score(conn, legislator_name: str, chamber: str,
                              district: str, org_name: str, year: int,
                              score: float, possible_score: float,
-                             vote_index: float, source_url: str = None):
+                             vote_index: float, source_url: str = None,
+                             legislator_id: int = None):
     """Insert or update a legislator score."""
     now = datetime.now(timezone.utc)
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO dispatch.legislator_scores
                 (legislator_name, chamber, district, org_name, year,
-                 score, possible_score, vote_index, source_url, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 score, possible_score, vote_index, source_url, updated_at, legislator_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (legislator_name, org_name, year) DO UPDATE SET
                 chamber = EXCLUDED.chamber,
                 district = EXCLUDED.district,
@@ -148,6 +149,82 @@ def upsert_legislator_score(conn, legislator_name: str, chamber: str,
                 possible_score = EXCLUDED.possible_score,
                 vote_index = EXCLUDED.vote_index,
                 source_url = EXCLUDED.source_url,
-                updated_at = EXCLUDED.updated_at
+                updated_at = EXCLUDED.updated_at,
+                legislator_id = EXCLUDED.legislator_id
         """, (legislator_name, chamber, district, org_name, year,
-              score, possible_score, vote_index, source_url, now))
+              score, possible_score, vote_index, source_url, now, legislator_id))
+
+
+# --- Legislator name resolution ---
+
+NICKNAME_GROUPS = [
+    {'dan', 'daniel'}, {'rick', 'richard'}, {'rob', 'robert', 'bob'},
+    {'doug', 'douglas'}, {'ali', 'alison'}, {'steve', 'steven'},
+    {'josh', 'joshua'}, {'jim', 'james'}, {'mike', 'michael'},
+    {'bill', 'william'}, {'ed', 'edward'}, {'joe', 'joseph'},
+    {'tom', 'thomas'}, {'ben', 'benjamin'}, {'chris', 'christopher'},
+    {'jon', 'jonathan'},
+]
+
+
+def _strip_first_name(raw):
+    """Extract base first name: strip leading initials (C. Scott -> Scott) and middle initials."""
+    parts = raw.split()
+    # Strip leading single-letter initials like "C." from "C. Scott Grow"
+    while len(parts) > 1 and re.match(r'^[A-Z]\.$', parts[0]):
+        parts.pop(0)
+    return parts[0].rstrip('.') if parts else raw
+
+
+def _first_names_match(a, b):
+    """Check if two first names match, accounting for nicknames and initials."""
+    a = _strip_first_name(a).lower()
+    b = _strip_first_name(b).lower()
+    if a == b:
+        return True
+    for group in NICKNAME_GROUPS:
+        if a in group and b in group:
+            return True
+    return False
+
+
+def _last_names_match(iaci_last, qibrain_last):
+    """Check if last names match, handling multi-word names like Henderson Haws."""
+    if iaci_last.lower() == qibrain_last.lower():
+        return True
+    # "Haws" matches "Henderson Haws" (last word)
+    if iaci_last.lower() == qibrain_last.split()[-1].lower():
+        return True
+    return False
+
+
+def resolve_legislator_id(conn, name, chamber, district):
+    """Resolve an IACI-style name + chamber + district to a QIBrain legislator_id.
+
+    Args:
+        name: e.g. "Dan Foreman"
+        chamber: "House" or "Senate"
+        district: "ID 22" format
+    Returns:
+        legislator_id (int) or None
+    """
+    dist_num = int(district.replace('ID ', '').strip())
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT legislator_id, first_name, last_name FROM idaho.legislators "
+            "WHERE is_active = true AND chamber = %s AND district_id = %s",
+            (chamber, dist_num)
+        )
+        candidates = cur.fetchall()
+
+    parts = name.split(None, 1)
+    iaci_first = parts[0]
+    iaci_last = parts[1] if len(parts) > 1 else ''
+
+    for leg_id, qb_first, qb_last in candidates:
+        if _last_names_match(iaci_last, qb_last) and _first_names_match(iaci_first, qb_first):
+            return leg_id
+
+    logger.warning(f"Could not resolve legislator: {name} ({chamber}, {district})")
+    return None

@@ -19,7 +19,7 @@ import sys
 import requests
 
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
-from utils import get_db, normalize_bill_number, lookup_bill_id, upsert_position, upsert_legislator_score
+from utils import get_db, normalize_bill_number, lookup_bill_id, upsert_position, upsert_legislator_score, resolve_legislator_id
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -167,9 +167,10 @@ def scrape_legislators(dry_run=False):
                     stats["scores_upserted"] += 1
                     continue
 
+                leg_id = resolve_legislator_id(conn, name, chamber, district)
                 upsert_legislator_score(
                     conn, name, chamber, district, ORG_NAME, year,
-                    score, possible, vi, SOURCE_URL
+                    score, possible, vi, SOURCE_URL, legislator_id=leg_id
                 )
                 stats["scores_upserted"] += 1
 
