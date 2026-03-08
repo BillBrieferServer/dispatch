@@ -63,7 +63,8 @@ SECTION 2 — SPONSOR PROFILE (sponsor_profile: object)
 - You will receive structured sponsor data below
 - Write a "narrative" field: 2-3 sentences characterizing the sponsor's legislative profile
 - Include their IACI voting trend if scores are provided (trending pro-business? independent? declining?)
-- If committee-sponsored: set name to the committee name, narrative to "Committee-sponsored bill — no individual sponsor profile available."
+- If committee-sponsored WITH named contacts in sponsor data: set name to the committee name, list the primary contacts in narrative, and include their IACI scores and bills this session. The individual contacts are the actual bill drivers.
+- If committee-sponsored with NO named contacts: set name to the committee name, narrative to "Committee-sponsored bill — no individual sponsor profile available."
 - Output: {{"name": "string", "chamber": "string", "district": "string", "bills_this_session": int, "iaci_scores": {{"2026": float, "2025": float, ...}}, "narrative": "string"}}
 
 SECTION 5 — MOMENTUM (momentum: object)
