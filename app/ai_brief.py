@@ -38,6 +38,10 @@ ORG_FULL_NAMES = {
     "IFBF": "Idaho Farm Bureau Federation",
     "ACLU Idaho": "ACLU of Idaho",
     "CPAC": "CPAC Center for Legislative Accountability",
+    "CVI": "Conservation Voters of Idaho",
+    "ICL": "Idaho Conservation League",
+    "CAI": "Citizens Alliance of Idaho",
+    "IWF": "Idaho Wildlife Federation",
 }
 
 # Import modules
