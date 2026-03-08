@@ -650,14 +650,16 @@ def _build_sponsor_display(bill_id: int) -> dict:
                     ld = f"LD{ind['district_num']}" if ind.get('district_num') else ""
 
                     # Count bills this session
+                    # bill_sponsors uses "First Last" (no middle initials)
                     bills_count = 0
+                    first = ind['raw_name'].split()[0] if ind.get('raw_name') else ''
                     cur.execute("""
                         SELECT count(*) as cnt FROM idaho.bills b
-                        JOIN bill_sponsors bs ON b.bill_id = bs.bill_id
-                        WHERE (bs.name = %s OR bs.name LIKE %s)
-                        AND bs.sponsor_order = 1
+                        JOIN idaho.bill_sponsors bs ON b.bill_id = bs.bill_id
+                        WHERE bs.name LIKE %s
+                        AND bs.name LIKE %s
                         AND b.legiscan_session_id = 2246
-                    """, (ind['raw_name'], f"%{ind['raw_name']}%"))
+                    """, (f"{first}%", f"% {ind['last_name']}"))
                     row = cur.fetchone()
                     if row:
                         bills_count = row['cnt']
