@@ -350,60 +350,132 @@ def _build_momentum_context(bill_id: int) -> str:
     """Assemble momentum data from QIBrain for AI context."""
     try:
         from app.services.qibrain_data import get_bill_actions, get_qibrain_connection
-        actions = get_bill_actions(bill_id)
 
-        if not actions:
-            return "No bill actions found."
-
-        # Days since introduction
-        intro_action = None
-        for a in reversed(actions):  # oldest first
-            if "introduced" in (a.get("action", "").lower()):
-                intro_action = a
-                break
-        if not intro_action and actions:
-            intro_action = actions[-1]  # oldest action as fallback
-
-        intro_date_str = intro_action.get("action_date", "") if intro_action else ""
-        days_since = "unknown"
-        if intro_date_str:
-            try:
-                intro_date = datetime.strptime(intro_date_str, "%Y-%m-%d")
-                days_since = (datetime.now() - intro_date).days
-            except ValueError:
-                pass
-
-        # Last action
-        last = actions[0] if actions else {}
-        last_action = last.get("action", "Unknown")
-        last_date = last.get("action_date", "Unknown")
-
-        # Hearing status
         conn = get_qibrain_connection()
         try:
             with conn.cursor() as cur:
+                # Get bill_number for this bill_id
+                cur.execute("SELECT bill_number FROM idaho.bills WHERE bill_id = %s", (bill_id,))
+                row = cur.fetchone()
+                bill_number = row["bill_number"] if row else None
+
+                # Full event timeline from bill_events (richer than bill_actions)
                 cur.execute("""
-                    SELECT hearing_date, committee_name
-                    FROM idaho.committee_agendas
-                    WHERE bill_number = (
-                        SELECT bill_number FROM idaho.bills WHERE bill_id = %s
-                    )
-                    ORDER BY hearing_date DESC LIMIT 1
+                    SELECT event_date, event_text
+                    FROM idaho.bill_events
+                    WHERE bill_id = %s
+                    ORDER BY event_date ASC, sequence_order ASC
                 """, (bill_id,))
-                hearing = cur.fetchone()
+                events = cur.fetchall()
+
+                # Hearing status from committee_agendas
+                hearing = None
+                if bill_number:
+                    cur.execute("""
+                        SELECT hearing_date, committee_name
+                        FROM idaho.committee_agendas
+                        WHERE bill_number = %s
+                        ORDER BY hearing_date DESC LIMIT 1
+                    """, (bill_number,))
+                    hearing = cur.fetchone()
+
+                # Reading calendar status
+                reading_cal = None
+                if bill_number:
+                    cur.execute("""
+                        SELECT reading_type, chamber, calendar_date
+                        FROM idaho.reading_calendars
+                        WHERE bill_number = %s
+                        ORDER BY calendar_date DESC LIMIT 1
+                    """, (bill_number,))
+                    reading_cal = cur.fetchone()
+
+                # Co-sponsor count
+                cur.execute("""
+                    SELECT COUNT(*) as cnt
+                    FROM idaho.bill_cosponsors
+                    WHERE bill_id = %s
+                """, (bill_id,))
+                cosponsor_row = cur.fetchone()
+                cosponsor_count = cosponsor_row["cnt"] if cosponsor_row else 0
         finally:
             conn.close()
 
-        hearing_status = "No hearing scheduled"
-        if hearing:
-            hearing_status = f"Hearing: {hearing['hearing_date']} in {hearing['committee_name']}"
+        if not events:
+            # Fall back to get_bill_actions if no bill_events
+            actions = get_bill_actions(bill_id)
+            if not actions:
+                return "No bill actions found."
+            events = [{"event_date": a.get("action_date", ""), "event_text": a.get("action", "")} for a in reversed(actions)]
 
+        # Days since introduction
+        days_since = "unknown"
+        for e in events:
+            if "introduced" in (e.get("event_text", "").lower()):
+                try:
+                    intro_date = datetime.strptime(e["event_date"], "%Y-%m-%d")
+                    days_since = (datetime.now() - intro_date).days
+                except (ValueError, TypeError):
+                    pass
+                break
+        if days_since == "unknown" and events:
+            try:
+                intro_date = datetime.strptime(events[0]["event_date"], "%Y-%m-%d")
+                days_since = (datetime.now() - intro_date).days
+            except (ValueError, TypeError):
+                pass
+
+        # Detect chamber crossover
+        crossed_chamber = False
+        for e in events:
+            text_lower = (e.get("event_text") or "").lower()
+            if "received from the house" in text_lower or "received from the senate" in text_lower:
+                crossed_chamber = True
+                break
+
+        # Detect if bill has passed a chamber
+        passed_chamber = None
+        for e in events:
+            text_lower = (e.get("event_text") or "").lower()
+            if "passed" in text_lower and "read third time" in text_lower:
+                if bill_number and bill_number.startswith("H"):
+                    passed_chamber = "House"
+                elif bill_number and bill_number.startswith("S"):
+                    passed_chamber = "Senate"
+                break
+
+        # Build context lines
         lines = [
             f"Days since introduction: {days_since}",
-            f"Total events: {len(actions)}",
-            f"Last action: {last_action} ({last_date})",
-            f"Hearing status: {hearing_status}",
+            f"Total events: {len(events)}",
         ]
+
+        if cosponsor_count > 0:
+            lines.append(f"Co-sponsors: {cosponsor_count}")
+
+        if crossed_chamber:
+            lines.append(f"Chamber crossover: YES (originated in {'House' if bill_number and bill_number.startswith('H') else 'Senate'})")
+        elif passed_chamber:
+            lines.append(f"Passed {passed_chamber}, awaiting crossover")
+
+        # Full event timeline (truncated event_text to keep context manageable)
+        lines.append("")
+        lines.append("EVENT TIMELINE (oldest to newest):")
+        for e in events:
+            date = e.get("event_date", "")
+            text = (e.get("event_text") or "")[:200]  # Truncate long vote lists
+            lines.append(f"  {date}: {text}")
+
+        # Hearing and reading calendar
+        lines.append("")
+        if hearing:
+            lines.append(f"Hearing scheduled: {hearing['hearing_date']} in {hearing['committee_name']}")
+        else:
+            lines.append("Hearing status: No hearing scheduled")
+
+        if reading_cal:
+            lines.append(f"Reading calendar: {reading_cal['reading_type']} in {reading_cal['chamber']} on {reading_cal['calendar_date']}")
+
         return "\n".join(lines)
     except Exception as e:
         logger.warning(f"Failed to build momentum context: {e}")

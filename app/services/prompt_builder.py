@@ -72,13 +72,29 @@ SECTION 2 — SPONSOR PROFILE (sponsor_profile: object)
 - Output: {{"name": "string", "chamber": "string", "district": "string", "bills_this_session": int, "iaci_scores": {{"2026": float, "2025": float, ...}}, "narrative": "string"}}
 
 SECTION 5 — MOMENTUM (momentum: object)
-- You will receive structured momentum data below
-- Determine trajectory: "Moving" / "Stalled" / "At risk"
-  - Moving: recent action within 7 days, crossing chambers, hearings scheduled
-  - Stalled: no action in 14+ days, stuck in committee, no hearing
-  - At risk: late in session with significant procedural hurdles remaining
-- Write a 2-3 sentence narrative explaining the trajectory read
-- Output: {{"trajectory": "Moving|Stalled|At risk", "days_since_introduction": int, "hearing_status": "string", "narrative": "string"}}
+- You will receive structured momentum data below, including the full event timeline.
+- Use the EVENT TIMELINE to determine the bill's actual procedural position — do not guess.
+
+Trajectory categories (choose one):
+  - "Advancing": Steady progress — moving through committee, floor readings, or crossing chambers on a normal timeline.
+  - "Fast-tracked": Unusual speed — bypassing normal committee process, accelerated scheduling, or multiple procedural steps in a compressed window.
+  - "Stalled": No substantive action in 14+ days, stuck in committee with no hearing scheduled.
+  - "At risk": Late in session with significant procedural hurdles remaining (e.g., needs full committee + floor votes in both chambers with limited days left).
+  - "Dormant": Introduced but no substantive action beyond printing/referral — may be a placeholder or statement bill.
+
+Narrative: 3-5 sentences. REQUIRED structure:
+  1. Current procedural position — where exactly is the bill right now? (e.g., "Filed for Third Reading in the House," "In Senate State Affairs with no hearing scheduled," "Crossed to the Senate after passing the House 51-17-2")
+  2. Pace assessment — is this normal, fast, or slow for this type of bill at this point in the session?
+  3. Next procedural step — what must happen next for the bill to advance? (e.g., "Needs Second and Third Reading in the House," "Awaits Senate committee assignment")
+  4. If a floor vote occurred, state the vote count without characterizing the margin.
+
+NEUTRALITY RULES:
+  - Do NOT predict political outcomes. No "dead on arrival," "insurmountable opposition," "no pathway forward," or "faces certain defeat."
+  - Do NOT characterize legislative composition or committee ideology (e.g., "Republican-controlled committee").
+  - State procedural facts: what has happened, where the bill sits, what comes next. Let leadership draw their own political conclusions.
+  - If a bill has not moved, state the timeline factually: "No action in 26 days since committee referral" — not "the bill shows no signs of movement."
+
+- Output: {{"trajectory": "Advancing|Fast-tracked|Stalled|At risk|Dormant", "days_since_introduction": int, "hearing_status": "string", "narrative": "string"}}
 
 RULES
 - Be direct. No hedging language. No "it should be noted" or "it is worth considering."
