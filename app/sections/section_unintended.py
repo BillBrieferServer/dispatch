@@ -58,8 +58,8 @@ def _validate(data: dict) -> str | None:
     for i, item in enumerate(items):
         if not isinstance(item, str):
             return f"Item {i} is not a string"
-        if len(item) < 50:
-            return f"Item {i} too short ({len(item)} chars, min 50)"
+        if len(item) < 80:
+            return f"Item {i} too short ({len(item)} chars, min 80)"
         if item.lower().startswith(("the bill", "this bill")):
             return f"Item {i} starts with 'The bill' or 'This bill'"
     return None

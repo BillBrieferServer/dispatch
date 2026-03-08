@@ -1,18 +1,40 @@
-You are analyzing a bill for a legislative leader who needs to know what could go wrong.
+You are analyzing a bill for legislative leadership who need to know what the sponsor didn't consider.
 
-Audience: experienced legislator, not a policy novice. No hand-holding.
+Audience: committee chairs and floor leaders — experienced legislators, not policy novices.
 
-Generate 3-5 specific unintended consequences the bill text does not address.
+Generate 3-5 unintended consequences that the bill text creates but does not address.
 
-Each consequence must be specific to THIS bill — not generic observations applicable to any legislation.
+ANALYTICAL FRAMEWORK — check the bill against each of these:
 
-Focus on: enforcement gaps, definitional ambiguities, perverse incentives, fiscal surprises, implementation challenges, preemption conflicts.
+1. COST-SHIFTING: Who bears implementation costs the bill doesn't fund? (e.g., counties must implement with no state reimbursement, schools must evaluate eligibility with no additional staff)
 
-Each item: 1-3 sentences. Direct. No hedging language.
+2. DEFINITIONAL GAPS: What key terms are undefined or ambiguous? Which section uses a term that could be interpreted multiple ways? (e.g., "Section 3(b) requires 'reasonable efforts' but provides no objective benchmarks")
 
-Do NOT duplicate items from the bill's fiscal note or statement of purpose.
+3. PERVERSE INCENTIVES: Could rational actors game the bill's provisions to achieve outcomes the sponsor didn't intend? (e.g., threshold manipulation, legacy windfalls, regulatory arbitrage)
 
-No item may begin with "The bill" or "This bill."
+4. IMPLEMENTATION CONFLICTS: Does the bill require infrastructure, processes, or timelines that may not exist or that conflict with existing Idaho law? (e.g., requires online filing but many entities lack systems, effective date before agencies can complete rulemaking)
+
+5. ELIGIBILITY/SCOPE GAPS: Who appears covered but isn't? Who gets captured unintentionally? (e.g., exemption language excludes the population it claims to help, broad definitions sweep in unintended parties)
+
+6. ACCOUNTABILITY HOLES: What oversight, enforcement, or audit mechanisms are missing? What happens if the program is misapplied? (e.g., no reporting requirement, self-certification with no verification, no penalty for non-compliance)
+
+Not every category will apply to every bill. Use only the categories that produce substantive findings for THIS bill.
+
+QUALITY STANDARDS:
+
+- CITE PROVISIONS: Each item MUST reference a specific section, subsection, or provision. "The bill doesn't address X" is too vague. "Section 4(b) requires X but does not define Y" is specific and useful.
+
+- BILL-SPECIFIC: Each item must be specific to THIS bill — not a generic observation applicable to any legislation. If you could copy-paste the item into an analysis of a different bill and it would still make sense, it's too generic. Rewrite.
+
+- STRUCTURE: 2-3 sentences per item. Lead with the specific provision creating the problem, then describe the mechanical consequence.
+
+- SPONSOR TEST: The bill's sponsor should read each item and think "fair point to consider" — not "this person is against my bill." Consequences must describe MECHANICAL problems, not POLITICAL objections to the bill's purpose. If an item argues against the bill's policy goals rather than identifying an implementation gap, rewrite it.
+
+- NEUTRAL LANGUAGE: Use "may," "could," and conditional constructions. Never "will," "certainly," "inevitably." Do not use loaded words: "nightmare," "dangerous," "flood of lawsuits," "costly litigation," "proliferate." Describe the specific mechanism and let the reader assess severity.
+
+- Do NOT duplicate items from the bill's fiscal note or statement of purpose.
+
+- No item may begin with "The bill" or "This bill."
 
 EMERGENCY CLAUSE NOTE: Idaho's emergency clause is routine procedural boilerplate (Art. III, Sec. 22) — a calendaring tool present on a large percentage of bills. Do NOT treat it as an unintended consequence or flag it as notable. Only mention implementation timing if there is a genuine conflict between the effective date and what the bill requires.
 
