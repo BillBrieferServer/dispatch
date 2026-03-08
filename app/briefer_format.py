@@ -369,6 +369,11 @@ def format_full_briefer(
                 label += f" | {bc} {'bill' if bc == 1 else 'bills'} this session"
             parts.append(label)
 
+        # Co-sponsor count (if any)
+        cosponsors = sd.get("cosponsors", [])
+        if cosponsors:
+            parts.append(f"+ {len(cosponsors)} co-sponsor{'s' if len(cosponsors) != 1 else ''}")
+
         parts.append("")
 
         # Score key: small italic, "(2025 Score)" format
@@ -478,6 +483,18 @@ def format_full_briefer(
     parts.append("Sponsors")
     parts.append("\n".join(sponsors_lines) if sponsors_lines else "\u2022 None listed")
     parts.append("")
+
+    # Co-sponsors (from sponsor_display data)
+    sd_s7 = ai.get("sponsor_display") or {}
+    cosponsors_s7 = sd_s7.get("cosponsors", [])
+    if cosponsors_s7:
+        parts.append("Co-sponsors")
+        for cs in cosponsors_s7:
+            cs_line = f"{cs.get('title', '')} {cs['name']}".strip()
+            if cs.get('ld'):
+                cs_line += f", {cs['ld']}"
+            parts.append(f"• {cs_line}")
+        parts.append("")
 
     committee_lines = _committee_path_lines(bill_obj)
     if committee_lines:

@@ -464,23 +464,22 @@ def _build_sponsor_display(bill_id: int) -> dict:
         "contacts": [
             {"name": "Jordan Redman", "title": "Rep.", "ld": "LD3",
              "bills_this_session": 4,
-             "scores": [{"org": "IACI", "pct": 38.2}, ...]},
+             "scores": [{"org": "IACI", "pct": 38.2, "year": 2026}, ...]},
             ...
         ],
         "committee": "Business Committee" or None,
         "chamber": "House" or "Senate",
+        "cosponsors": [{"name": "...", "title": "Rep.", "ld": "LD4"}, ...],
     }
     """
     if not bill_id:
-        return {"contacts": [], "committee": None, "chamber": ""}
+        return {"contacts": [], "committee": None, "chamber": "", "cosponsors": []}
 
     try:
         from app.services.qibrain_data import get_bill_sponsors, get_qibrain_connection
         sponsors = get_bill_sponsors(bill_id)
-        if not sponsors:
-            return {"contacts": [], "committee": None, "chamber": ""}
 
-        primary = sponsors[0]
+        primary = sponsors[0] if sponsors else {}
         name = primary.get("name", "Unknown")
         first_name = primary.get("first_name", "")
         party = primary.get("party", "")
@@ -503,8 +502,8 @@ def _build_sponsor_display(bill_id: int) -> dict:
             with conn.cursor() as cur:
                 individuals = []
 
-                if not is_committee:
-                    # Individual sponsor
+                if sponsors and not is_committee:
+                    # Individual sponsor from bill_sponsors
                     district_num = _extract_district_num(district)
                     individuals.append({
                         "raw_name": name,
@@ -513,70 +512,49 @@ def _build_sponsor_display(bill_id: int) -> dict:
                         "chamber": chamber,
                     })
                 else:
-                    # Committee — find individuals from cosponsors or SOP
-                    cur.execute("""
-                        SELECT bc.legislator_name, l.party, l.district_id,
-                               CASE WHEN l.chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
-                        FROM idaho.bill_cosponsors bc
-                        LEFT JOIN idaho.legislators l ON l.legislator_id = bc.legislator_id
-                        WHERE bc.bill_id = %s
-                        ORDER BY bc.id
-                    """, (bill_id,))
-                    cosponsors = cur.fetchall()
-
-                    if cosponsors:
-                        for cs in cosponsors:
-                            parts = (cs['legislator_name'] or '').split()
+                    # Committee or no bill_sponsors — resolve from SOP text
+                    cur.execute("SELECT sop_text FROM idaho.bills WHERE bill_id = %s", (bill_id,))
+                    row = cur.fetchone()
+                    sop_text = row['sop_text'] if row and row.get('sop_text') else ''
+                    sop_contacts = _parse_sop_contacts(sop_text)
+                    for sc in sop_contacts:
+                        full = sc['full_name']
+                        parts = full.split()
+                        search_last = parts[-1] if parts else ''
+                        search_first = parts[0] if parts else ''
+                        # Resolve to legislator
+                        cur.execute("""
+                            SELECT first_name, last_name, district_id,
+                                   CASE WHEN chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
+                            FROM idaho.legislators
+                            WHERE last_name = %s AND is_active = true
+                            ORDER BY district_id
+                        """, (search_last,))
+                        matches = cur.fetchall()
+                        resolved = None
+                        if len(matches) == 1:
+                            resolved = matches[0]
+                        elif len(matches) > 1:
+                            for m in matches:
+                                if m['first_name'] and m['first_name'].lower().startswith(search_first.lower()):
+                                    resolved = m
+                                    break
+                        if resolved:
                             individuals.append({
-                                "raw_name": cs['legislator_name'],
-                                "last_name": parts[-1] if parts else '',
-                                "district_num": str(cs.get('district_id', '')),
-                                "chamber": cs.get('chamber', chamber),
+                                "raw_name": f"{resolved['first_name']} {resolved['last_name']}",
+                                "last_name": resolved['last_name'],
+                                "district_num": str(resolved.get('district_id', '')),
+                                "chamber": resolved.get('chamber', '') or sc.get('title', '').replace('.', ''),
                             })
-                    else:
-                        # Parse SOP
-                        cur.execute("SELECT sop_text FROM idaho.bills WHERE bill_id = %s", (bill_id,))
-                        row = cur.fetchone()
-                        sop_text = row['sop_text'] if row and row.get('sop_text') else ''
-                        sop_contacts = _parse_sop_contacts(sop_text)
-                        for sc in sop_contacts:
-                            full = sc['full_name']
-                            parts = full.split()
-                            search_last = parts[-1] if parts else ''
-                            search_first = parts[0] if parts else ''
-                            # Resolve to legislator
-                            cur.execute("""
-                                SELECT first_name, last_name, district_id,
-                                       CASE WHEN chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
-                                FROM idaho.legislators
-                                WHERE last_name = %s AND is_active = true
-                                ORDER BY district_id
-                            """, (search_last,))
-                            matches = cur.fetchall()
-                            resolved = None
-                            if len(matches) == 1:
-                                resolved = matches[0]
-                            elif len(matches) > 1:
-                                for m in matches:
-                                    if m['first_name'] and m['first_name'].lower().startswith(search_first.lower()):
-                                        resolved = m
-                                        break
-                            if resolved:
-                                individuals.append({
-                                    "raw_name": f"{resolved['first_name']} {resolved['last_name']}",
-                                    "last_name": resolved['last_name'],
-                                    "district_num": str(resolved.get('district_id', '')),
-                                    "chamber": resolved.get('chamber', '') or sc.get('title', '').replace('.', ''),
-                                })
-                            else:
-                                title = sc.get('title', '')
-                                ch = 'House' if 'Rep' in title else 'Senate' if 'Sen' in title else ''
-                                individuals.append({
-                                    "raw_name": sc['raw_line'],
-                                    "last_name": search_last,
-                                    "district_num": '',
-                                    "chamber": ch,
-                                })
+                        else:
+                            title = sc.get('title', '')
+                            ch = 'House' if 'Rep' in title else 'Senate' if 'Sen' in title else ''
+                            individuals.append({
+                                "raw_name": sc['raw_line'],
+                                "last_name": search_last,
+                                "district_num": '',
+                                "chamber": ch,
+                            })
 
                 # Build contacts with scores
                 contacts = []
@@ -642,16 +620,36 @@ def _build_sponsor_display(bill_id: int) -> dict:
                         "scores": scores,
                     })
 
+                # Get co-sponsors (from LegCo PDF, already in bill_cosponsors table)
+                cosponsors_list = []
+                cur.execute("""
+                    SELECT bc.legislator_name, l.district_id, l.chamber
+                    FROM idaho.bill_cosponsors bc
+                    JOIN idaho.legislators l ON l.legislator_id = bc.legislator_id
+                    WHERE bc.bill_id = %s
+                    ORDER BY l.chamber, l.last_name
+                """, (bill_id,))
+                for cs in cur.fetchall():
+                    cs_title = "Rep." if cs['chamber'] == 'House' else "Sen."
+                    cosponsors_list.append({
+                        "name": cs['legislator_name'],
+                        "title": cs_title,
+                        "ld": f"LD{cs['district_id']}" if cs.get('district_id') else "",
+                    })
+
+                committee_name = name if (sponsors and is_committee) else None
+
                 return {
                     "contacts": contacts,
-                    "committee": name if is_committee else None,
+                    "committee": committee_name,
                     "chamber": chamber,
+                    "cosponsors": cosponsors_list,
                 }
         finally:
             conn.close()
     except Exception as e:
         logger.warning(f"Failed to build sponsor display: {e}")
-        return {"contacts": [], "committee": None, "chamber": ""}
+        return {"contacts": [], "committee": None, "chamber": "", "cosponsors": []}
 
 def build_ai_brief(
     *,

@@ -397,6 +397,7 @@ def _parse_briefer_text(body_text: str) -> List[Tuple[str, str]]:
         "explanation",
         "coalition alert",
         "sponsors",
+        "co-sponsors",
         "committee path",
         "bill history/actions",
         "bill history/actions (most recent first)",
