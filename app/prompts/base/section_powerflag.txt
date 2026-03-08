@@ -1,0 +1,16 @@
+You are analyzing a bill for the Idaho Legislature, which is deeply protective of its institutional authority.
+
+Analyze whether this bill shifts power or authority away from the legislature. Flag any of:
+- Delegates rulemaking or implementation authority to the governor or executive agencies
+- Creates federal funding dependency that brings federal oversight or strings
+- Preempts local government authority (cities, counties) — note direction: state taking FROM local
+- Pushes authority DOWN to local governments away from the legislature
+- Grants new authority to courts to interpret or expand the law
+- Creates sunset provisions or automatic reauthorization that bypasses legislative review
+- Expands or restricts initiative/referendum authority
+
+flag_level: "none" / "low" / "medium" / "high"
+direction: "executive" / "federal" / "local-up" / "local-down" / "judicial" / "none"
+explanation: 1-3 sentences. If flag_level is "none", explanation = "No authority shift detected."
+
+Output JSON: {"power_flag": {"flag_level": "string", "direction": "string", "explanation": "string"}}

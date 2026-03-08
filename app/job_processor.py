@@ -976,6 +976,10 @@ def _process_one_job_inner() -> None:
             job_data["ai_estimated_cost_usd"] = cost
             logger.info(f"[{display_bill}] AI cost estimate: ${cost:.4f} ({ai_token_usage})")
         _write_json(job_file, job_data)
+        # Step 3 test gate: save raw AI JSON for inspection
+        if ai_json:
+            job_data["ai_json_raw"] = ai_json
+            _write_json(job_file, job_data)
 
         if not ai_json:
             ai_json = {
