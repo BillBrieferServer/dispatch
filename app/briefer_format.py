@@ -483,7 +483,7 @@ def format_full_briefer(
                         # Pure redundancy — suppress
                         detail = None
                     if detail:
-                        line += f" \u2014 {detail}"
+                        line += f", {detail}"
                     parts.append(line)
         if coalition_alert:
             parts.append("")
