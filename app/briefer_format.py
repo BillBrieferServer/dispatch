@@ -358,11 +358,11 @@ def format_full_briefer(
         for idx, c in enumerate(contacts):
             label = f"{c.get('title', '')} {c['name']}".strip()
             if c.get('ld'):
-                label += f", {c['ld']}"
+                label += f" ({c['ld']}):"
             scores = c.get("scores", [])
             if scores:
                 score_strs = [f"{s['org']}: {round(s['pct'])}%" for s in scores]
-                label += ", " + ", ".join(score_strs)
+                label += " " + ", ".join(score_strs)
             # Bills count for single sponsor only
             if len(contacts) == 1 and c.get("bills_this_session"):
                 bc = c['bills_this_session']
