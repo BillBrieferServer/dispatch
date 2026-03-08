@@ -418,17 +418,23 @@ def _build_momentum_context(bill_id: int) -> str:
 
         # Days since introduction
         days_since = "unknown"
+        def _parse_event_date(d):
+            """Handle both datetime.date objects and date strings."""
+            if hasattr(d, 'year'):  # already a date/datetime object
+                return datetime(d.year, d.month, d.day)
+            return datetime.strptime(str(d), "%Y-%m-%d")
+
         for e in events:
             if "introduced" in (e.get("event_text", "").lower()):
                 try:
-                    intro_date = datetime.strptime(e["event_date"], "%Y-%m-%d")
+                    intro_date = _parse_event_date(e["event_date"])
                     days_since = (datetime.now() - intro_date).days
                 except (ValueError, TypeError):
                     pass
                 break
         if days_since == "unknown" and events:
             try:
-                intro_date = datetime.strptime(events[0]["event_date"], "%Y-%m-%d")
+                intro_date = _parse_event_date(events[0]["event_date"])
                 days_since = (datetime.now() - intro_date).days
             except (ValueError, TypeError):
                 pass
