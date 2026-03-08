@@ -125,6 +125,12 @@ def plain_text_to_html(s: str) -> str:
             out.append(f"<div style='font-weight:bold;color:#333;margin:12px 0 6px 0;'>{esc(t)}</div>")
             continue
 
+        # Score key line - small italic rendering (matches PDF format)
+        if t.startswith("SCORE_KEY:"):
+            flush_kv(); close_ul()
+            key_text = t.replace("SCORE_KEY: ", "").replace("SCORE_KEY:", "")
+            out.append("<div style='font-size:10px;font-style:italic;color:#666;margin:2px 0 4px 0;line-height:1.4;'>Scores: %s</div>" % esc(key_text.strip()))
+            continue
         # Section 10 subheaders - match Bill History/Actions style
         if t in ("Roll Calls", "Vote Record", "Committee Path"):
             flush_kv(); close_ul()
@@ -266,7 +272,7 @@ def plain_text_to_html(s: str) -> str:
             out.append(f"<div style='font-weight:bold;color:#1a365d;margin:12px 0 6px 0;'>{esc(t)}</div>")
             continue
         # Idaho Bill Briefer header
-        if "BRIEFER" in t.upper() and "SESSION" in t.upper():
+        if ("BRIEFER" in t.upper() or "DISPATCH" in t.upper()) and "SESSION" in t.upper():
             flush_kv(); close_ul()
             out.append(f"<div style='font-size:18px;font-weight:bold;color:#111;margin:16px 0 2px 0;'>{esc(t)}</div>")
             continue
@@ -439,7 +445,7 @@ def plain_text_to_html(s: str) -> str:
             continue
 
         mkv = kv_re.match(t)
-        if mkv and current_section_title != "fiscal note summary":
+        if mkv and current_section_title == "bill snapshot":
             k = mkv.group(1).strip()
             v = mkv.group(2).strip()
             # Skip bullet points - they should not be treated as key-value pairs
