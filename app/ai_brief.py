@@ -227,17 +227,21 @@ def _build_sponsor_context(bill_id: int) -> str:
                         full = sc['full_name']
                         parts = full.split()
                         if len(parts) >= 2:
-                            # Try last name + first name match
-                            search_last = parts[-1]
-                            # Handle multi-word names and middle initials
                             search_first = parts[0]
-                            cur.execute("""
-                                SELECT first_name, last_name, party, district_id
-                                FROM idaho.legislators
-                                WHERE last_name = %s AND is_active = true
-                                ORDER BY district_id
-                            """, (search_last,))
-                            matches = cur.fetchall()
+                            # Try progressively longer last names for multi-word surnames
+                            matches = []
+                            for split_pos in range(len(parts)-1, 0, -1):
+                                candidate_last = ' '.join(parts[split_pos:])
+                                cur.execute("""
+                                    SELECT first_name, last_name, party, district_id
+                                    FROM idaho.legislators
+                                    WHERE last_name = %s AND is_active = true
+                                    ORDER BY district_id
+                                """, (candidate_last,))
+                                matches = cur.fetchall()
+                                if matches:
+                                    break
+                            matches = matches
                             if len(matches) == 1:
                                 m = matches[0]
                                 individuals.append({
@@ -592,17 +596,24 @@ def _build_sponsor_display(bill_id: int) -> dict:
                     for sc in sop_contacts:
                         full = sc['full_name']
                         parts = full.split()
-                        search_last = parts[-1] if parts else ''
                         search_first = parts[0] if parts else ''
-                        # Resolve to legislator
-                        cur.execute("""
-                            SELECT first_name, last_name, district_id,
-                                   CASE WHEN chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
-                            FROM idaho.legislators
-                            WHERE last_name = %s AND is_active = true
-                            ORDER BY district_id
-                        """, (search_last,))
-                        matches = cur.fetchall()
+                        # Try progressively longer last names for multi-word surnames
+                        # e.g., "Lori Den Hartog" -> try "Hartog", then "Den Hartog"
+                        matches = []
+                        search_last = parts[-1] if parts else ''
+                        for split_pos in range(len(parts)-1, 0, -1):
+                            candidate_last = ' '.join(parts[split_pos:])
+                            cur.execute("""
+                                SELECT first_name, last_name, district_id,
+                                       CASE WHEN chamber = 'House' THEN 'House' ELSE 'Senate' END as chamber
+                                FROM idaho.legislators
+                                WHERE last_name = %s AND is_active = true
+                                ORDER BY district_id
+                            """, (candidate_last,))
+                            matches = cur.fetchall()
+                            if matches:
+                                search_last = candidate_last
+                                break
                         resolved = None
                         if len(matches) == 1:
                             resolved = matches[0]
@@ -657,6 +668,15 @@ def _build_sponsor_display(bill_id: int) -> dict:
                             WHERE l.last_name = %s AND l.district_id = %s AND l.is_active = true
                             ORDER BY ls.org_name, ls.year DESC
                         """, (ind['last_name'], ind['district_num']))
+                    else:
+                        # No district — query by name only
+                        cur.execute("""
+                            SELECT ls.org_name, ls.vote_index, ls.year
+                            FROM dispatch.legislator_scores ls
+                            JOIN idaho.legislators l ON l.legislator_id = ls.legislator_id
+                            WHERE l.last_name = %s AND l.is_active = true
+                            ORDER BY ls.org_name, ls.year DESC
+                        """, (ind['last_name'],))
                     score_rows = cur.fetchall()
                     if not score_rows:
                         # Fallback: district mismatch (seat vs legislative district)
