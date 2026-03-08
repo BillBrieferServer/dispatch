@@ -470,7 +470,6 @@ def format_full_briefer(
                     if detail and org and detail.startswith(org + ":"):
                         detail = detail[len(org)+1:].strip()
                     # Handle scored positions (e.g. IACI "Support and Score" -> "support and score — +1")
-                    import re
                     if detail and re.search(r'and\s+score', detail, re.IGNORECASE):
                         # Scored vote — append per-bill score based on position direction
                         score_val = "+1" if position.lower().startswith("support") else "-1"
