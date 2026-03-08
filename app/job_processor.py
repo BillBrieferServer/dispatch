@@ -935,7 +935,7 @@ def _process_one_job_inner() -> None:
         fiscal_note_text = fiscal_note.get("text", "") if fiscal_note.get("found") else ""
 
         # Extract bill metadata for caching
-        bill_id_for_cache = bill_obj.get("bill_id") if bill_obj else None
+        # Use qibrain_bill_id (internal) for data lookups; legiscan bill_id for cache key
         session_id_for_cache = bill_obj.get("session", {}).get("session_id") if bill_obj else None
         change_hash_for_cache = bill_obj.get("change_hash", "") if bill_obj else None
 
@@ -944,7 +944,7 @@ def _process_one_job_inner() -> None:
             legiscan_bill=bill_payload,
             bill_text=bill_text,
             fiscal_note_text=fiscal_note_text,
-            bill_id=bill_id_for_cache,
+            bill_id=qibrain_bill_id,
             session_id=session_id_for_cache,
             bill_change_hash=change_hash_for_cache,
         )
