@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Admins - Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+        h1 { color: #1a3a5c; }
+        .admin-list { background: #f8fafc; border: 1px solid #e6e8eb; border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e6e8eb; }
+        .admin-item:last-child { border-bottom: none; }
+        .admin-email { font-size: 14px; color: #333; }
+        .remove-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .remove-btn:hover { background: #c82333; }
+        .add-form { margin-top: 20px; }
+        .add-form input[type="email"] { padding: 10px; width: 300px; border: 1px solid #ccc; border-radius: 5px; }
+        .add-form button { background: #1a3a5c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        .add-form button:hover { background: #2c4a6c; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #1a3a5c; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .message { padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .count { color: #666; font-size: 14px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">Home</a> | <a href="/admin/ops" class="back-link">Ops</a> | <a href="/admin/users" class="back-link">Users</a> | <a href="/admin/reports" class="back-link">Reports</a> | <a href="/admin/demo" class="back-link">Demo</a>
+    <h1>Manage Admin Users</h1>
+    
+    {% if message %}
+    <div class="message {{ message_type }}">{{ message }}</div>
+    {% endif %}
+    
+    <div class="admin-list">
+        <h3>Current Admins <span class="count">({{ admins|length }})</span></h3>
+        {% for admin in admins %}
+        <div class="admin-item">
+            <span class="admin-email">{{ admin }}</span>
+            <form method="post" action="/admin/admins/remove" style="margin: 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                <input type="hidden" name="email" value="{{ admin }}">
+                <button type="submit" class="remove-btn" onclick="return confirm('Remove {{ admin }} from admins?')">Remove</button>
+            </form>
+        </div>
+        {% endfor %}
+        {% if not admins %}
+        <p style="color: #666; font-style: italic;">No admin users configured.</p>
+        {% endif %}
+    </div>
+    
+    <div class="add-form">
+        <h3>Add New Admin</h3>
+        <form method="post" action="/admin/admins/add">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <input type="email" name="email" placeholder="email@example.com" required>
+            <button type="submit">Add Admin</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin - Demo Briefer Generator</title>
+<link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+<style>
+body { font-family: system-ui; max-width: 640px; margin: 48px auto; padding: 0 16px; line-height: 1.5; }
+h1 { margin-bottom: 8px; }
+.subtitle { color: #666; margin-top: 0; margin-bottom: 24px; font-size: 0.95em; }
+label { display: block; margin-bottom: 4px; font-weight: 600; }
+input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; margin-bottom: 16px; }
+.btn { padding: 12px 20px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; font-size: 16px; text-decoration: none; display: inline-block; }
+.btn-download { background: #16a34a; }
+.btn-reset { background: #6b7280; margin-left: 10px; }
+.message { padding: 12px; border-radius: 10px; background: #e8f5e9; margin: 16px 0; }
+.error { padding: 12px; border-radius: 10px; background: #ffecec; color: #7a0000; margin: 16px 0; }
+.progress { padding: 16px; border-radius: 10px; background: #f0f4ff; border: 1px solid #c7d2fe; margin: 16px 0; text-align: center; }
+.progress .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #c7d2fe; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.download-section { padding: 20px; border-radius: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; margin: 16px 0; text-align: center; }
+.nav { margin-top: 24px; font-size: 0.9em; }
+.nav a { color: #111; margin-right: 12px; }
+</style>
+</head>
+<body>
+<h1>Demo Briefer Generator</h1>
+<p class="subtitle">Generate a sample briefer for a prospective legislator. PDF download only — no email sent.</p>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+{% if job_id is defined and job_id %}
+<div class="progress" id="progress">
+  <span class="spinner"></span>
+  <span id="progress-text">Generating briefer... this takes 30-60 seconds</span>
+</div>
+<div class="download-section" id="download-section" style="display:none;">
+  <p id="ready-text" style="margin:0 0 12px 0; font-weight:600;">Briefer ready!</p>
+  <a id="download-link" href="/admin/demo/download/{{ job_id }}" class="btn btn-download">Download PDF</a>
+  <a href="/admin/demo" class="btn btn-reset">Generate Another</a>
+</div>
+<script>
+(function(){
+  var jobId = "{{ job_id }}";
+  var demoName = "{{ demo_name|default('', true) }}";
+  var demoDistrict = "{{ demo_district|default('', true) }}";
+  var progress = document.getElementById('progress');
+  var progressText = document.getElementById('progress-text');
+  var downloadSection = document.getElementById('download-section');
+  var readyText = document.getElementById('ready-text');
+  var checks = 0;
+  var maxChecks = 120;
+
+  function poll(){
+    checks++;
+    if(checks > maxChecks){
+      progress.style.display = 'none';
+      var e = document.createElement('div');
+      e.className = 'error';
+      e.textContent = 'Generation timed out. Check the ops dashboard.';
+      document.body.insertBefore(e, downloadSection);
+      return;
+    }
+    fetch('/admin/demo/status/' + jobId, {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.status === 'done'){
+          progress.style.display = 'none';
+          var name = d.demo_name || demoName;
+          var dist = d.demo_district || demoDistrict;
+          if(name && dist){
+            readyText.textContent = 'Briefer ready for ' + name + ', LD' + String(dist).padStart(2,'0');
+          }
+          downloadSection.style.display = 'block';
+        } else if(d.status === 'failed' || d.status === 'held'){
+          progress.style.display = 'none';
+          var e = document.createElement('div');
+          e.className = 'error';
+          e.textContent = 'Generation ' + d.status + ': ' + (d.error || 'Check logs');
+          document.body.insertBefore(e, downloadSection);
+        } else {
+          progressText.textContent = 'Generating briefer... (' + (checks * 2) + 's)';
+          setTimeout(poll, 2000);
+        }
+      })
+      .catch(function(){ setTimeout(poll, 3000); });
+  }
+  setTimeout(poll, 2000);
+})();
+</script>
+{% else %}
+{% if message %}
+<div class="message">{{ message }}</div>
+{% endif %}
+
+<form method="post" action="/admin/demo">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <label for="demo_name">Legislator Name</label>
+  <input type="text" id="demo_name" name="demo_name" required placeholder="e.g., Representative Jane Smith">
+
+  <label for="demo_district">District</label>
+  <input type="text" id="demo_district" name="demo_district" required placeholder="e.g., 29 or LD29">
+
+  <label for="bill">Bill Number</label>
+  <input type="text" id="bill" name="bill" required placeholder="e.g., H0529 or S1221">
+
+  <button type="submit" class="btn">Generate Briefer</button>
+</form>
+{% endif %}
+
+<div class="nav">
+  <a href="/">Home</a>
+  <a href="/admin/ops">Ops</a>
+  <a href="/admin/users">Users</a>
+  <a href="/admin/reports">Reports</a>
+  <a href="/admin/admins">Admins</a>
+</div>
+</body>
+</html>

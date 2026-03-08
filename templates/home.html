@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  </head>
+  <body style="font-family:system-ui;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.4;background:#fff;color:#111;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <img src="/static/Dome.png" alt="Idaho Capitol dome" style="width:220px;height:auto;display:inline-block;" />
+    </div>
+    <h1 style="text-align:center;margin:0 0 10px 0;">Idaho Bill Briefer</h1>
+    <p style="text-align:center;color:#999;margin-top:-8px;margin-bottom:16px;font-size:0.85em;">
+      from <strong style="color:#777;">Quiet Impact</strong>
+    </p>
+    {% if user %}
+      <p style="text-align:center;color:#555;margin-top:0;">
+        Signed in as <strong>{{ user.get('display_name','') or user.get('name','') or user.get('email','') }}</strong>
+
+        · <a href="/auth/settings" style="color:#111">Settings</a> · <a href="/auth/logout" style="color:#111">Sign out</a>
+      </p>
+      {% if error %}
+        <p style="padding:10px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;">
+          {{ error }}
+        </p>
+      {% endif %}
+
+      <form method="post" action="/request" style="margin-top:26px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div style="display:flex;gap:16px;align-items:flex-start;">
+          <div style="flex:0 0 140px;">
+            <label style="display:block;margin-bottom:6px"><strong>Session</strong></label>
+            <select
+              name="session"
+              style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:16px;box-sizing:border-box;"
+            >
+              {% for year in sessions %}
+                <option value="{{ year }}" {% if year == default_session|int %}selected{% endif %}>{{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;margin-bottom:6px"><strong>Bill Number</strong></label>
+            <input
+              type="text"
+              name="bill"
+              required
+              style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;font-size:16px;"
+              placeholder="Example: H0001 or S0001"
+            />
+          </div>
+        </div>
+        <div style="height:18px"></div>
+        <button
+          type="submit"
+          style="padding:10px 14px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer"
+        >
+          Request Briefer
+        </button>
+        <p style="margin-top:14px;font-size:0.9em;color:#555">
+          You'll see a confirmation page immediately.
+        </p>
+        <p style="font-size:10pt">This briefing combines official legislative documents and demographic data with AI analysis. All source data comes from verified government sources. AI is used to analyze and summarize &mdash; not to generate facts, statistics, or quotes.</p>
+        <p style="margin-top:12px;font-size:10pt;">
+          <a href="/about" style="color:#111;">How it works</a>
+        </p>
+        <p style="margin-top:12px;font-size:10pt;">
+          Questions? Contact <a href="mailto:info@billbriefer.com">info@billbriefer.com</a>.
+        </p>
+      </form>
+    {% else %}
+      <p style="font-style:italic;color:#666;font-size:1.1em;text-align:center;margin:0 0 4px 0;">
+        Informed legislators craft better policy.
+      </p>
+      <p style="font-style:italic;color:#666;font-size:1.1em;text-align:center;margin:0 0 1.5em 0;">
+        Better policy serves everyone.
+      </p>
+      <div style="text-align:center;margin-top:22px;">
+        <a
+          href="/auth/login"
+          style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111;color:#fff;text-decoration:none"
+        >
+          Sign in to request a briefer
+        </a>
+      </div>
+      <p style="color:#555;text-align:center;margin-top:18px;">
+        Invite-only access for Idaho legislators.
+      </p>
+      <p style="text-align:center;margin-top:2em;font-size:0.9em;color:#888;">
+        Request invitation: <a href="mailto:admin@billbriefer.com" style="color:#666;">admin@billbriefer.com</a>
+      </p>
+    {% endif %}
+      {% include "partials/footer.html" %}
+</body>
+</html>

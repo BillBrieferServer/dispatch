@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Request received — Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  </head>
+  <body style="font-family:system-ui;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.4">
+    <h1>Request received</h1>
+
+    <p><strong>Email:</strong> {{ email }}</p>
+    <p><strong>Bill:</strong> {{ bill }}{% if session_year %} ({{ session_year }} Session){% endif %}</p>
+    {% if bill_title %}
+      <p style="color:#555;margin-top:-8px;font-size:0.95em;">{{ bill_title }}</p>
+    {% endif %}
+
+    {% if note %}
+      <p style="padding:10px 12px;background:#dbeafe;border:1px solid #93c5fd;border-radius:10px;color:#1e40af;">
+        {{ note }}
+      </p>
+    {% endif %}
+
+    {% if status == "queued" %}
+      <p><strong>Status:</strong> Processing ✅</p>
+      <p style="font-size:10pt;margin-bottom:4px;">Your briefer is being generated now. It is usually emailed within 3-5 minutes (a bit longer during peak traffic).</p>
+      <p>You can close this tab.</p>
+      <p style="font-size:0.9em;color:#555"><strong>Reference ID:</strong> {{ job_id }}</p>
+    {% elif status == "error" %}
+      <p><strong>Status:</strong> Error</p>
+      <p>{{ error }}</p>
+    {% else %}
+      <p><strong>Status:</strong> {{ status }}</p>
+    {% endif %}
+
+    <div style="height:18px"></div>
+
+    <a
+      href="/"
+      style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111;color:#fff;text-decoration:none"
+    >
+      Request Another Briefer
+    </a>
+
+    <hr style="margin:24px 0" />
+    <p style="font-size:0.9em;color:#555">
+      If you don't receive an email, check your spam folder and verify your email address.
+    </p>
+
+    <p style="margin-top:18px;font-size:10pt;">
+      Questions? Contact <a href="mailto:info@billbriefer.com">info@billbriefer.com</a>.
+    </p>
+
+
+    {% include "partials/footer.html" %}
+</body>
+</html>

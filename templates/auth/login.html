@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign In — Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  </head>
+  <body style="font-family:system-ui;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.4;background:#fff;color:#111;">
+    <h1>Sign In</h1>
+
+    {% if request.query_params.get('reset') == 'success' %}
+      <p style="padding:10px 12px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;color:#065f46;">
+        Password reset successful. Please sign in with your new password.
+      </p>
+    {% endif %}
+
+    <p style="color:#555">
+      Enter your credentials to access your account.
+    </p>
+
+    {% if error %}
+      <p style="padding:10px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;">
+        {{ error }}
+      </p>
+    {% endif %}
+
+    <form method="post" action="/auth/login" style="margin-top:18px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <label style="display:block;margin-bottom:6px"><strong>Email</strong></label>
+      <input
+        type="email"
+        name="email"
+        required
+        value="{{ email or '' }}"
+        style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box"
+        placeholder="Your email address"
+      />
+
+      <div style="height:16px"></div>
+
+      <label style="display:block;margin-bottom:6px"><strong>Password</strong></label>
+      <input
+        type="password"
+        name="password"
+        required
+        style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box"
+        placeholder="Your password"
+      />
+
+      <div style="height:16px"></div>
+
+      <button
+        type="submit"
+        style="padding:10px 18px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer;font-size:1em"
+      >
+        Sign In
+      </button>
+    </form>
+
+    <p style="margin-top:18px;">
+      <a href="/auth/reset-password" style="color:#555;font-size:0.9em">Forgot your password?</a>
+    </p>
+
+    <p style="margin-top:18px;">
+      <a href="/auth/register" style="color:#111;font-weight:500">Create an account</a> <span style="color:#999;font-size:0.9em;">(authorized users only)</span>
+    </p>
+
+    <p style="margin-top:18px;">
+      <a href="/" style="color:#111">← Back to home</a>
+    </p>
+
+    {% include "partials/footer.html" %}
+  </body>
+</html>

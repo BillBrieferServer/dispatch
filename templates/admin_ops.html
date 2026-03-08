@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ops Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:12px;font-size:14px}
+a{color:#60a5fa;text-decoration:none}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.header h1{font-size:20px;font-weight:600}
+.btn{display:inline-block;padding:10px 16px;border-radius:8px;border:none;font-size:14px;font-weight:500;cursor:pointer;text-align:center}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-blue{background:#3b82f6;color:#fff}
+.btn-red{background:#ef4444;color:#fff}
+.btn-ghost{background:transparent;border:1px solid #475569;color:#94a3b8}
+
+/* Status card */
+.status-card{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px}
+.status-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.status-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+.status-label{font-size:18px;font-weight:600;text-transform:capitalize}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.metric{background:#0f172a;border-radius:8px;padding:10px;text-align:center}
+.metric .val{font-size:22px;font-weight:700}
+.metric .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+
+/* Section */
+.section-title{font-size:16px;font-weight:600;margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between}
+
+/* Job cards */
+.job-card{background:#1e293b;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid #475569}
+.job-card.done{border-left-color:#22c55e}
+.job-card.failed{border-left-color:#ef4444}
+.job-card.processing{border-left-color:#3b82f6}
+.job-card.queued{border-left-color:#f59e0b}
+.job-card.stuck{border-left-color:#ef4444}
+.job-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.job-bill{font-weight:600;font-size:15px}
+.job-status{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase}
+.job-status.done{background:#052e16;color:#4ade80}
+.job-status.failed{background:#450a0a;color:#fca5a5}
+.job-status.processing{background:#172554;color:#93c5fd}
+.job-status.queued{background:#422006;color:#fcd34d}
+.job-status.stuck{background:#450a0a;color:#fca5a5}
+.job-user{font-size:12px;color:#cbd5e1;margin-bottom:2px}
+.job-meta{font-size:12px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:6px 14px}
+.job-error{font-size:12px;color:#fca5a5;margin-top:4px;word-break:break-word}
+.job-actions{margin-top:6px}
+
+/* Log viewer */
+.log-controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.log-filter{padding:6px 12px;border-radius:6px;border:1px solid #475569;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer}
+.log-filter.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+.log-viewer{background:#020617;border-radius:10px;padding:10px;font-family:'Courier New',monospace;font-size:11px;line-height:1.6;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.log-line{padding:1px 0}
+.log-line.ERROR{color:#fca5a5}
+.log-line.WARNING{color:#fcd34d}
+.log-line.INFO{color:#94a3b8}
+.log-line.DEBUG{color:#64748b}
+
+.refresh-note{font-size:11px;color:#64748b}
+
+@media(min-width:768px){
+  body{max-width:900px;margin:0 auto;padding:24px}
+  .metrics{grid-template-columns:repeat(5,1fr)}
+  .jobs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Ops Dashboard</h1>
+  <a href="/" class="btn btn-sm btn-ghost">Home</a> <a href="/admin/users" class="btn btn-sm btn-ghost">Users</a> <a href="/admin/reports" class="btn btn-sm btn-ghost">Reports</a> <a href="/admin/admins" class="btn btn-sm btn-ghost">Admins</a> <a href="/admin/demo" class="btn btn-sm btn-ghost">Demo</a> <a href="/admin/ops" class="btn btn-sm btn-ghost">Refresh</a>
+</div>
+
+<!-- Status -->
+<div class="status-card">
+  <div class="status-header">
+    <div class="status-dot" style="background:{{status.color}}"></div>
+    <div class="status-label">{{status.health}}</div>
+  </div>
+  <div class="metrics">
+    <div class="metric"><div class="val">{{status.queued}}</div><div class="lbl">Queued</div></div>
+    <div class="metric"><div class="val">{{status.processing}}</div><div class="lbl">Active</div></div>
+    <div class="metric"><div class="val">{{status.stuck}}</div><div class="lbl">Stuck</div></div>
+    <div class="metric"><div class="val" style="color:#ef4444">{{status.failed_1h}}</div><div class="lbl">Failed 1h</div></div>
+    <div class="metric"><div class="val" style="color:#22c55e">{{status.done_1h}}</div><div class="lbl">Done 1h</div></div>
+  </div>
+</div>
+
+<!-- Recent Jobs -->
+<div class="section-title">
+  <span>Recent Jobs</span>
+  <span class="refresh-note" id="jobs-timer">auto-refresh 30s</span>
+</div>
+<div class="jobs-grid" id="jobs-grid">Loading jobs...</div>
+
+<!-- Logs -->
+<div class="section-title">
+  <span>Logs</span>
+  <span class="refresh-note" id="log-timer">auto-refresh 10s</span>
+</div>
+<div class="log-controls">
+  <button class="log-filter active" data-level="">All</button>
+  <button class="log-filter" data-level="ERROR">Errors</button>
+  <button class="log-filter" data-level="WARNING">Warnings</button>
+  <button class="log-filter" data-level="INFO">Info</button>
+</div>
+<div class="log-viewer" id="log-viewer">Loading logs...</div>
+
+<script>
+(function(){
+  var currentLevel = '';
+  var viewer = document.getElementById('log-viewer');
+
+  function fetchLogs(){
+    var url = '/admin/ops/logs?limit=100';
+    if(currentLevel) url += '&level=' + currentLevel;
+    fetch(url, {credentials:'same-origin'})
+      .then(function(r){return r.json()})
+      .then(function(entries){
+        if(!entries.length){viewer.textContent='No log entries';return}
+        var html = '';
+        for(var i=0;i<entries.length;i++){
+          var e = entries[i];
+          html += '<div class="log-line '+e.level+'">'+escHtml(e.iso+' '+e.level+' '+e.msg)+'</div>';
+        }
+        viewer.innerHTML = html;
+        viewer.scrollTop = viewer.scrollHeight;
+      })
+      .catch(function(){viewer.textContent='Failed to load logs'});
+  }
+
+  function escHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.querySelectorAll('.log-filter').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.log-filter').forEach(function(b){b.classList.remove('active')});
+      btn.classList.add('active');
+      currentLevel = btn.getAttribute('data-level');
+      fetchLogs();
+    });
+  });
+
+  fetchLogs();
+  setInterval(fetchLogs, 10000);
+})();
+</script>
+
+<script>
+(function(){
+  var grid = document.getElementById('jobs-grid');
+  function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function fetchJobs(){
+    fetch('/admin/ops/jobs?limit=20',{credentials:'same-origin'})
+      .then(function(r){return r.json()})
+      .then(function(jobs){
+        if(!jobs.length){grid.innerHTML='<div style="color:#64748b;padding:20px;text-align:center">No recent jobs</div>';return}
+        var html='';
+        for(var i=0;i<jobs.length;i++){
+          var j=jobs[i];
+          html+='<div class="job-card '+escHtml(j.status)+'">';
+          html+='<div class="job-top"><span class="job-bill">'+escHtml(j.bill)+'</span>';
+          html+='<span class="job-status '+escHtml(j.status)+'">'+escHtml(j.status)+'</span></div>';
+          html+='<div class="job-user">'+escHtml(j.email)+'</div>';
+          html+='<div class="job-meta"><span>'+escHtml(j.time_ago)+'</span>';
+          html+='<span>wait '+escHtml(j.wait_s)+'</span>';
+          html+='<span>proc '+escHtml(j.proc_s)+'</span>';
+          html+='<span>'+escHtml(j.cost)+'</span></div>';
+          if(j.error) html+='<div class="job-error">'+escHtml(j.error)+'</div>';
+          if(j.status==='failed'||j.status==='stuck'){
+            html+='<div class="job-actions"><form method="post" action="/admin/ops/retry-job" style="display:inline">';
+            html+='<input type="hidden" name="job_id" value="'+escHtml(j.job_id)+'">';
+            html+='<button type="submit" class="btn btn-sm btn-red">Retry</button></form></div>';
+          }
+          html+='</div>';
+        }
+        grid.innerHTML=html;
+      })
+      .catch(function(){grid.textContent='Failed to load jobs'});
+  }
+  fetchJobs();
+  setInterval(fetchJobs, 30000);
+})();
+</script>
+</body>
+</html>

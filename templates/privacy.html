@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Privacy Policy — Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  </head>
+  <body style="font-family:system-ui;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.5;background:#fff;color:#111;">
+    <h1>Privacy Policy</h1>
+    <p style="color:#555;font-size:0.9em;">Last updated: February 23, 2026</p>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">What Data We Collect</h2>
+    <ul>
+      <li><strong>Account information:</strong> Email address and name (provided during registration)</li>
+      <li><strong>Authentication data:</strong> Password hash (bcrypt), session tokens, trusted device fingerprints</li>
+      <li><strong>Security logs:</strong> IP addresses, login attempts, and security events (for fraud prevention)</li>
+      <li><strong>Request history:</strong> Bill numbers you request briefers for, timestamps, and job status</li>
+      <li><strong>Cookies:</strong> <code>bb_session</code> (authentication) and <code>csrf_session</code> (security token)</li>
+    </ul>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">Why We Collect It</h2>
+    <ul>
+      <li><strong>Account management:</strong> To authenticate you and deliver briefers to your email</li>
+      <li><strong>Security:</strong> To detect unauthorized access, prevent brute-force attacks, and protect your account</li>
+      <li><strong>Service delivery:</strong> To generate and deliver bill briefings you request</li>
+      <li><strong>Service improvement:</strong> To understand usage patterns and improve the product</li>
+    </ul>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">Third-Party Services</h2>
+    <p>When you request a briefer, the following data is shared with third-party services:</p>
+    <ul>
+      <li><strong>Anthropic (AI analysis):</strong> Bill text, fiscal notes, and district demographic data are sent for AI analysis. Your personal information (name, email) is not sent to Anthropic.</li>
+      <li><strong>LegiScan:</strong> Bill numbers and session IDs are sent to retrieve official legislative data.</li>
+      <li><strong>IONOS (email delivery):</strong> Your email address and the briefer PDF are transmitted for email delivery.</li>
+      <li><strong>US Census Bureau / Bureau of Labor Statistics:</strong> Public demographic and economic data is retrieved (no personal data is sent).</li>
+    </ul>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">Data Retention</h2>
+    <ul>
+      <li>Account data is retained while your account is active</li>
+      <li>Security logs (login attempts, security events) are retained for 90 days</li>
+      <li>Request history and job files are retained for 90 days after completion</li>
+      <li>Briefer content cache is retained indefinitely (to avoid regenerating previously requested briefers)</li>
+    </ul>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">What We Don't Do</h2>
+    <ul>
+      <li>We do not sell your data to anyone</li>
+      <li>We do not share your data for advertising purposes</li>
+      <li>We do not track you across other websites</li>
+      <li>We do not use third-party analytics or tracking scripts</li>
+    </ul>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">Your Rights</h2>
+    <p>You can request deletion of your account and associated data by contacting <a href="mailto:info@billbriefer.com" style="color:#111;">info@billbriefer.com</a>. We will process deletion requests within 30 days.</p>
+
+    <h2 style="font-size:1.1em;margin-top:32px;">Contact</h2>
+    <p>Questions about this policy? Contact <a href="mailto:info@billbriefer.com" style="color:#111;">info@billbriefer.com</a>.</p>
+
+    <p style="margin-top:32px;"><a href="/" style="color:#111;">← Back to Idaho Bill Briefer</a></p>
+
+    {% include "partials/footer.html" %}
+  </body>
+</html>

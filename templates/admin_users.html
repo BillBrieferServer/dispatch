@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin - Manage Users</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+<style>
+body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 16px; line-height: 1.4; }
+.chamber-section { margin-bottom: 32px; }
+.chamber-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #ddd; }
+.chamber-header h2 { margin: 0; font-size: 1.3em; }
+.select-all-btn { font-size: 0.85em; padding: 4px 10px; border: 1px solid #999; border-radius: 6px; background: #f5f5f5; cursor: pointer; }
+.legislator-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.legislator-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; }
+.legislator-item input[type="checkbox"] { width: 18px; height: 18px; }
+.legislator-item label { cursor: pointer; flex: 1; }
+.legislator-name { font-weight: 500; }
+.legislator-email { font-size: 0.85em; color: #666; }
+.authorized { background: #e8f5e9; border-color: #c8e6c9; }
+.message { padding: 10px 12px; border-radius: 10px; background: #e8f5e9; margin: 14px 0; }
+.error { padding: 10px 12px; border-radius: 10px; background: #ffecec; color: #7a0000; margin: 14px 0; }
+.actions { margin-top: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.save-btn { padding: 12px 20px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
+.stats { margin-left: auto; color: #666; font-size: 0.95em; }
+.manual-section { margin-top: 32px; padding: 20px; background: #f5f5f5; border-radius: 10px; }
+.manual-section h3 { margin: 0 0 12px 0; font-size: 1.1em; }
+.manual-list { margin-bottom: 16px; }
+.manual-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 6px; }
+.manual-item .name { font-weight: 500; }
+.manual-item .email { color: #666; font-size: 0.9em; flex: 1; }
+.manual-item .district-badge { font-size: 0.8em; color: #fff; background: #4f46e5; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.manual-item .no-district { font-size: 0.8em; color: #999; font-style: italic; }
+.manual-item .delete-btn { background: none; border: none; color: #999; cursor: pointer; font-size: 1.2em; padding: 0 4px; }
+.manual-item .delete-btn:hover { color: #c00; }
+.add-manual { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.add-manual input, .add-manual select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; }
+.add-manual select { min-width: 100px; }
+.add-btn { padding: 8px 16px; border: 1px solid #111; border-radius: 6px; background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Admin - Manage Users</h1>
+<p style="color:#555;">Select legislators to authorize access.</p>
+{% if message %}<div class="message">{{ message }}</div>{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" action="/admin/users">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+<div class="chamber-section">
+<div class="chamber-header"><h2>Senate</h2>
+<button type="button" class="select-all-btn" onclick="toggleAll('senator',true)">Select All</button>
+<button type="button" class="select-all-btn" onclick="toggleAll('senator',false)">Deselect All</button>
+<span style="color:#666;margin-left:auto;"><span id="senator-count">0</span>/{{ senators|length }}</span>
+</div>
+<div class="legislator-grid">
+{% for leg in senators %}
+<div class="legislator-item {% if leg.authorized %}authorized{% endif %}">
+<input type="checkbox" name="emails" value="{{ leg.email }}" id="leg-{{ loop.index }}" class="leg-checkbox senator" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
+<label for="leg-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
+</div>
+{% endfor %}
+</div></div>
+<div class="chamber-section">
+<div class="chamber-header"><h2>House</h2>
+<button type="button" class="select-all-btn" onclick="toggleAll('representative',true)">Select All</button>
+<button type="button" class="select-all-btn" onclick="toggleAll('representative',false)">Deselect All</button>
+<span style="color:#666;margin-left:auto;"><span id="representative-count">0</span>/{{ representatives|length }}</span>
+</div>
+<div class="legislator-grid">
+{% for leg in representatives %}
+<div class="legislator-item {% if leg.authorized %}authorized{% endif %}">
+<input type="checkbox" name="emails" value="{{ leg.email }}" id="rep-{{ loop.index }}" class="leg-checkbox representative" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
+<label for="rep-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
+</div>
+{% endfor %}
+</div></div>
+<div class="manual-section">
+<h3>Other Authorized Users</h3>
+<p style="color:#666;font-size:0.9em;">Add non-legislators to the list. Assign a sample district for briefer generation.</p>
+<div class="manual-list" id="manual-list">
+{% for user in manual_users %}
+<div class="manual-item">
+<input type="checkbox" name="emails" value="{{ user.email }}" checked class="manual-checkbox" onchange="updateCounts()">
+<input type="hidden" name="manual_names" value="{{ user.email }}|{{ user.name or '' }}|{{ user.district or '' }}">
+<span class="name">{{ user.name or 'No name' }}</span>
+{% if user.district %}
+<span class="district-badge">LD{{ '%02d' % user.district }}</span>
+{% else %}
+<span class="no-district">No district</span>
+{% endif %}
+<span class="email">{{ user.email }}</span>
+<button type="button" class="delete-btn" onclick="deleteManualUser(this)" title="Remove user">&times;</button>
+</div>
+{% endfor %}
+</div>
+<div class="add-manual">
+<input type="text" name="manual_name" placeholder="Name">
+<input type="email" name="manual_email" placeholder="Email">
+<select id="manual_district">
+<option value="">No district</option>
+{% for d in range(1, 36) %}
+<option value="{{ d }}">LD{{ '%02d' % d }}</option>
+{% endfor %}
+</select>
+<button type="button" class="add-btn" onclick="addManualUser()">Add</button>
+</div></div>
+<div class="actions">
+<button type="submit" class="save-btn">Save Changes</button>
+<a href="/">Home</a> <a href="/admin/ops">Ops</a> <a href="/admin/reports">Reports</a> <a href="/admin/admins">Admins</a> <a href="/admin/demo">Demo</a></div>
+<span class="stats">Total: <span id="total-count">0</span></span>
+</div>
+</form>
+<script>
+function toggleAll(c,v){document.querySelectorAll('.'+c).forEach(function(x){x.checked=v});updateCounts();}
+function updateCounts(){var s=document.querySelectorAll('.senator:checked').length;var r=document.querySelectorAll('.representative:checked').length;var m=document.querySelectorAll('.manual-checkbox:checked').length;document.getElementById('senator-count').textContent=s;document.getElementById('representative-count').textContent=r;document.getElementById('total-count').textContent=s+r+m;}
+function deleteManualUser(btn){if(confirm("Remove this user?")){btn.parentElement.remove();updateCounts();}}
+function addManualUser(){
+  var n=document.querySelector('input[name="manual_name"]');
+  var e=document.querySelector('input[name="manual_email"]');
+  var ds=document.getElementById('manual_district');
+  var em=e.value.trim();
+  var nm=n.value.trim()||'No name';
+  var dist=ds.value;
+  if(!em||em.indexOf('@')===-1){alert('Enter valid email');return;}
+  var d=document.getElementById('manual-list');
+  var i=document.createElement('div');
+  i.className='manual-item';
+  var distBadge = dist ? '<span class="district-badge">LD'+String(dist).padStart(2,'0')+'</span>' : '<span class="no-district">No district</span>';
+  i.innerHTML='<input type="checkbox" name="emails" value="'+em+'" checked class="manual-checkbox" onchange="updateCounts()"><input type="hidden" name="manual_names" value="'+em+'|'+nm+'|'+dist+'"><span class="name">'+nm+'</span>'+distBadge+'<span class="email">'+em+'</span><button type="button" class="delete-btn" onclick="deleteManualUser(this)" title="Remove user">&times;</button>';
+  d.appendChild(i);
+  n.value='';e.value='';ds.value='';updateCounts();
+}
+updateCounts();
+</script>
+</body>
+</html>

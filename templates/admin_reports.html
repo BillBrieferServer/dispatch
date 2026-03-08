@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Reports — Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 960px; margin: 40px auto; padding: 0 16px; line-height: 1.4; }
+      h1 { margin: 0 0 8px; }
+      .sub { color: #555; margin: 0 0 24px; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 16px 0; }
+      label { display: inline-block; margin-right: 10px; }
+      input { padding: 8px; border: 1px solid #ccc; border-radius: 8px; }
+      button { padding: 10px 14px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
+      button:hover { opacity: 0.92; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+      .muted { color: #666; font-size: 0.95em; }
+      a { color: #0b5; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .err { color: #b00; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Admin — Usage Reports</h1>
+
+  <div style="margin:12px 0 18px 0;">
+    <a href="/admin/users" style="margin-right:12px;">Users</a> <a href="/admin/ops" style="margin-right:12px;">Ops</a> <a href="/admin/admins" style="margin-right:12px;">Admins</a> <a href="/admin/demo" style="margin-right:12px;">Demo</a>
+    <a href="/" style="margin-right:12px;">Home</a>
+    <a href="/logout">Logout</a>
+  </div>
+
+    <p class="sub">Generate a PDF usage report (Boise time) for public records requests.</p>
+
+    {% if error %}
+      <p class="err">{{ error }}</p>
+    {% endif %}
+
+    <div class="card">
+      <h2 style="margin-top:0;">Generate PDF</h2>
+      <form method="post" action="/admin/reports/generate">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <label>
+          Start (YYYY-MM-DD):
+          <input name="start" value="{{ default_start }}" required />
+        </label>
+        <label>
+          End (YYYY-MM-DD):
+          <input name="end" value="{{ default_end }}" required />
+        </label>
+        <button type="submit">Generate PDF</button>
+      </form>
+      <p class="muted" style="margin-bottom:0;">
+        Tip: Use inclusive dates. The report uses Boise time boundaries.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Recent Reports</h2>
+      {% if reports and reports|length > 0 %}
+        <table>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Modified</th>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in reports %}
+              <tr>
+                <td><a href="/admin/reports/download/{{ r.name }}">{{ r.name }}</a></td>
+                <td class="muted">{{ r.mtime }}</td>
+                <td class="muted">{{ r.size }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No reports yet.</p>
+      {% endif %}
+    </div>
+
+    <p class="muted">
+      <a href="/">Back to home</a>
+    </p>
+  </body>
+</html>

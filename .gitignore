@@ -1,0 +1,31 @@
+# Data files (unique per stack)
+data/*.sqlite
+data/*.db
+data/jobs/
+data/census_cache/
+data/auth/
+data/reports/
+data/*.csv
+data/*.json
+
+# Keep these data files in git (static reference data)
+!data/census_ld_demographics_2023.json
+!data/census_idaho_state_2023.json
+!data/legislators.json
+!data/manual_users.json
+!data/allowlist_emails.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
+# Docker
+*.log
+
+# OS
+.DS_Store
+\!app/data/statewide_context.json

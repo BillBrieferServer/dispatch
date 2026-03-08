@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Account Settings — Idaho Bill Briefer</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+      body {
+        font-family: system-ui;
+        max-width: 800px;
+        margin: 48px auto;
+        padding: 0 16px;
+        line-height: 1.4;
+        background: #fff;
+        color: #111;
+      }
+      h1 { margin-bottom: 8px; }
+      h2 { margin-top: 32px; margin-bottom: 16px; font-size: 1.2em; }
+      .user-info { color: #555; margin-bottom: 24px; }
+      .alert-error {
+        padding: 10px 12px;
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 10px;
+        color: #991b1b;
+        margin-bottom: 16px;
+      }
+      .alert-success {
+        padding: 10px 12px;
+        background: #d1fae5;
+        border: 1px solid #6ee7b7;
+        border-radius: 10px;
+        color: #065f46;
+        margin-bottom: 16px;
+      }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .session-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .session-item:last-child { border-bottom: none; }
+      .session-info { flex: 1; }
+      .session-device { font-weight: 500; }
+      .session-details { font-size: 0.85em; color: #666; margin-top: 4px; }
+      .session-current {
+        display: inline-block;
+        background: #dbeafe;
+        color: #1e40af;
+        font-size: 0.75em;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-left: 8px;
+      }
+      .btn {
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+      }
+      .btn-primary {
+        background: #111;
+        color: #fff;
+      }
+      .btn-danger {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+      .form-hint {
+        font-size: 0.85em;
+        color: #666;
+        margin-top: -8px;
+        margin-bottom: 12px;
+      }
+      .back-link {
+        margin-top: 24px;
+      }
+      .back-link a {
+        color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Account Settings</h1>
+    <p class="user-info">
+      Signed in as <strong>{{ user.email }}</strong>
+      {% if user.name %} ({{ user.name }}){% endif %}
+    </p>
+
+    {% if error %}
+      <p class="alert-error">{{ error }}</p>
+    {% endif %}
+
+    {% if success %}
+      <p class="alert-success">{{ success }}</p>
+    {% endif %}
+
+    <!-- Active Sessions Section -->
+    <h2>Active Sessions</h2>
+    <div class="card">
+      {% if sessions %}
+        {% for session in sessions %}
+          <div class="session-item">
+            <div class="session-info">
+              <div class="session-device">
+                {% if 'Windows' in (session.user_agent or '') %}
+                  Windows
+                {% elif 'Mac' in (session.user_agent or '') %}
+                  Mac
+                {% elif 'iPhone' in (session.user_agent or '') %}
+                  iPhone
+                {% elif 'Android' in (session.user_agent or '') %}
+                  Android
+                {% elif 'Linux' in (session.user_agent or '') %}
+                  Linux
+                {% else %}
+                  Unknown Device
+                {% endif %}
+                {% if 'Chrome' in (session.user_agent or '') %}
+                  - Chrome
+                {% elif 'Firefox' in (session.user_agent or '') %}
+                  - Firefox
+                {% elif 'Safari' in (session.user_agent or '') and 'Chrome' not in (session.user_agent or '') %}
+                  - Safari
+                {% elif 'Edge' in (session.user_agent or '') %}
+                  - Edge
+                {% endif %}
+                {% if session.token_hash == current_token_hash %}
+                  <span class="session-current">Current Session</span>
+                {% endif %}
+              </div>
+              <div class="session-details">
+                {% if session.ip_address %}IP: {{ session.ip_address }} &bull; {% endif %}
+                Last used: {{ session.last_used[:16] if session.last_used else 'Unknown' }}
+                &bull; Created: {{ session.created_at[:10] if session.created_at else 'Unknown' }}
+              </div>
+            </div>
+            <form method="post" action="/auth/settings/sessions/revoke/{{ session.id }}" style="margin:0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+              <button type="submit" class="btn btn-danger"
+                onclick="return confirm('{% if session.token_hash == current_token_hash %}This will log you out. Continue?{% else %}Revoke this session?{% endif %}')">
+                {% if session.token_hash == current_token_hash %}Log Out{% else %}Revoke{% endif %}
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:#666">No active sessions found.</p>
+      {% endif %}
+    </div>
+
+    {% if sessions|length > 1 %}
+      <form method="post" action="/auth/settings/sessions/revoke-all" style="margin-bottom:24px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <button type="submit" class="btn btn-secondary"
+          onclick="return confirm('This will log you out of all other devices. Continue?')">
+          Log Out All Other Sessions
+        </button>
+      </form>
+    {% endif %}
+
+    <!-- Trusted Devices Section -->
+    <h2>Trusted Devices</h2>
+    <p style="font-size: 0.9em; color: #666; margin-bottom: 12px;">
+      These devices can sign in without a verification code for 30 days.
+    </p>
+    <div class="card">
+      {% if trusted_devices %}
+        {% for device in trusted_devices %}
+          <div class="session-item">
+            <div class="session-info">
+              <div class="session-device">
+                {{ device.device_name or "Unknown Device" }}
+                <span style="display:inline-block;background:#d1fae5;color:#065f46;font-size:0.75em;padding:2px 8px;border-radius:4px;margin-left:8px;">Trusted</span>
+              </div>
+              <div class="session-details">
+                {% if device.ip_address %}IP: {{ device.ip_address }} &bull; {% endif %}
+                Last used: {{ device.last_used[:16] if device.last_used else "Unknown" }}
+                &bull; Expires: {{ device.expires_at[:10] if device.expires_at else "Unknown" }}
+              </div>
+            </div>
+            <form method="post" action="/auth/settings/trusted-devices/remove/{{ device.id }}" style="margin:0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+              <button type="submit" class="btn btn-danger"
+                onclick="return confirm("Remove this trusted device?")">
+                Remove
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:#666;font-style:italic">No trusted devices. Check "Trust this device" when signing in to add one.</p>
+      {% endif %}
+    </div>
+
+    {% if trusted_devices|length > 1 %}
+      <form method="post" action="/auth/settings/trusted-devices/remove-all" style="margin-bottom:24px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <button type="submit" class="btn btn-secondary"
+          onclick="return confirm("Remove all trusted devices?")">
+          Remove All Trusted Devices
+        </button>
+      </form>
+    {% endif %}
+
+    <!-- Change Password Section -->
+    <h2>Change Password</h2>
+    <div class="card">
+      <form method="post" action="/auth/settings/change-password">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <label>Current Password</label>
+        <input type="password" name="current_password" required />
+
+        <label>New Password</label>
+        <input type="password" name="new_password" required minlength="8" />
+        <p class="form-hint">At least 8 characters with at least one letter and one number.</p>
+
+        <label>Confirm New Password</label>
+        <input type="password" name="confirm_password" required minlength="8" />
+
+        <button type="submit" class="btn btn-primary">Change Password</button>
+      </form>
+    </div>
+
+    <p class="back-link">
+      <a href="/">← Back to Dashboard</a>
+    </p>
+      {% include "partials/footer.html" %}
+</body>
+</html>

@@ -1,0 +1,56 @@
+services:
+  app:
+    build: .
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      FROM_EMAIL: ${FROM_EMAIL}
+      LEGISCAN_API_KEY: ${LEGISCAN_API_KEY}
+      LEGISCAN_STATE: ${LEGISCAN_STATE}
+      LEGISCAN_SESSION_YEAR: ${LEGISCAN_SESSION_YEAR}
+      LEGISCAN_SESSION_ID: ${LEGISCAN_SESSION_ID}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      CENSUS_API_KEY: ${CENSUS_API_KEY}
+      CENSUS_ACS_YEAR: ${CENSUS_ACS_YEAR}
+      CENSUS_CACHE_TTL_SECONDS: ${CENSUS_CACHE_TTL_SECONDS}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      OPENAI_VERBOSITY: ${OPENAI_VERBOSITY}
+      OPENAI_USE_WEB_SEARCH: ${OPENAI_USE_WEB_SEARCH}
+      MAX_BILL_TEXT_CHARS: ${MAX_BILL_TEXT_CHARS}
+      APP_BASE_URL: ${APP_BASE_URL}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
+      AI_PROVIDER: ${AI_PROVIDER}
+      AI_FALLBACK_ENABLED: ${AI_FALLBACK_ENABLED}
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      NTFY_TOPIC: ${NTFY_TOPIC}
+      QIBRAIN_DATABASE_URL: ${QIBRAIN_DATABASE_URL}
+      BLS_API_KEY: ${BLS_API_KEY}
+      SESSION_YEAR: ${SESSION_YEAR:-2026}
+      SECTION9_COMPOSER_ENABLED: ${SECTION9_COMPOSER_ENABLED:-0}
+    ports:
+      - "127.0.0.1:8008:8000"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./data:/app/data
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./app:/app/app
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
