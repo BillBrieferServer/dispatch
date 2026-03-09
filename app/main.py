@@ -29,6 +29,8 @@ except ImportError:
     init_ai_cache_db = None
 
 from app.legislators import LEGISLATORS
+from app.ratings import init_ratings_db, get_ratings, set_rating, clear_rating
+from app.bill_status import classify_status
 
 load_dotenv()
 
@@ -246,6 +248,7 @@ try:
         init_ai_cache_db()
         print("AI_CACHE_DB_INITIALIZED")
     init_auth_db()
+    init_ratings_db()
     # Clean up any jobs stuck in 'processing' from previous container restart
     stuck_count = cleanup_stuck_jobs()
     # Run data retention cleanup on startup
@@ -358,6 +361,211 @@ def home(request: Request):
         return redir
     user = current_user(request)
     return templates.TemplateResponse("home.html", {"request": request, "user": user, "sessions": AVAILABLE_SESSIONS, "default_session": DEFAULT_SESSION_YEAR})
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request):
+    redir = require_login(request)
+    if redir:
+        return redir
+
+    from app.services.qibrain_data import get_qibrain_connection
+    from datetime import date
+
+    tenant = os.getenv('TENANT_ID', '')
+    session_year = DEFAULT_SESSION_YEAR
+    today = date.today()
+
+    existing_ratings = get_ratings(tenant, session_year)
+
+    # Load demo sponsor assignments
+    import json as _json
+    _demo_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'demo_sponsors.json')
+    try:
+        with open(_demo_path) as _f:
+            demo_sponsors = _json.load(_f)
+    except FileNotFoundError:
+        demo_sponsors = {}
+
+    conn = get_qibrain_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT b.bill_id, b.bill_number, b.title, b.subjects,
+               b.introduced_date, b.last_action_date, b.last_action,
+               bs.name AS sponsor_name, bs.first_name AS sponsor_first,
+               bs.party AS sponsor_party,
+               lg.email AS sponsor_email,
+               -- First co-sponsor fallback, filtered to same chamber as bill
+               (SELECT bc.legislator_name FROM idaho.bill_cosponsors bc
+                JOIN idaho.legislators l3 ON l3.legislator_id = bc.legislator_id
+                WHERE bc.bill_id = b.bill_id
+                  AND CASE WHEN b.bill_number LIKE 'H%%' THEN l3.chamber = 'H'
+                           WHEN b.bill_number LIKE 'S%%' THEN l3.chamber = 'S'
+                           ELSE true END
+                ORDER BY bc.id LIMIT 1) AS cosponsor_name,
+               (SELECT l2.email FROM idaho.bill_cosponsors bc2
+                JOIN idaho.legislators l2 ON l2.legislator_id = bc2.legislator_id
+                WHERE bc2.bill_id = b.bill_id
+                  AND CASE WHEN b.bill_number LIKE 'H%%' THEN l2.chamber = 'H'
+                           WHEN b.bill_number LIKE 'S%%' THEN l2.chamber = 'S'
+                           ELSE true END
+                ORDER BY bc2.id LIMIT 1) AS cosponsor_email,
+               -- First committee referral from bill events
+               (SELECT be.event_text FROM idaho.bill_events be
+                WHERE be.bill_id = b.bill_id
+                  AND be.event_text ILIKE '%%Referred to%%'
+                  AND be.event_text NOT ILIKE '%%JR%%'
+                  AND be.event_text NOT ILIKE '%%printing%%'
+                ORDER BY be.sequence_order LIMIT 1) AS committee_event
+        FROM idaho.bills b
+        JOIN idaho.sessions s ON b.legiscan_session_id = s.legiscan_session_id
+        LEFT JOIN idaho.bill_sponsors bs
+            ON bs.bill_id = b.bill_id AND bs.sponsor_type = 1 AND bs.sponsor_order = 1
+        LEFT JOIN idaho.legislators lg
+            ON lg.legiscan_people_id = bs.legiscan_people_id AND lg.is_active = true
+        WHERE s.year = %s
+        ORDER BY b.last_action_date DESC NULLS LAST, b.bill_number
+    """, (int(session_year),))
+    rows = cur.fetchall()
+    conn.close()
+
+    bills = []
+    for r in rows:
+        # Topic: first element of subjects JSONB array, fallback to title prefix
+        subj = r['subjects']
+        if isinstance(subj, list) and subj:
+            topic = str(subj[0]).upper()
+        elif isinstance(subj, str):
+            import json as _json
+            try:
+                parsed = _json.loads(subj)
+                topic = str(parsed[0]).upper() if parsed else ''
+            except Exception:
+                topic = subj.upper() if subj else ''
+        else:
+            topic = ''
+        if not topic:
+            import re as _re2
+            _tm = _re2.match(r'^([A-Z][A-Z\s,/&\-\(\)]+?)(?:\s+(?:Adds?|Amends?|Relates?|Provides?|Repeals?|Establishes?|Revises?|Appropriat|States|A JOINT|AN ACT)[\s,]|\s+[-–]\s)', r['title'] or '')
+            if _tm:
+                topic = _tm.group(1).strip().rstrip(' -')
+
+        # Status classification
+        status_label, status_color = classify_status(r['last_action'])
+
+        # Days calculation
+        intro = r['introduced_date']
+        days = (today - intro).days if intro else None
+
+        # Last action date formatted MM/DD
+        lad = r['last_action_date']
+        last_action_fmt = lad.strftime('%m/%d') if lad else ''
+
+        # Sponsor: demo assignment, then individual, then co-sponsor fallback
+        bn = r['bill_number'] or ''
+        demo = demo_sponsors.get(bn)
+        if demo:
+            sponsor_name = demo['name']
+            sponsor_email = demo['email'].lower()
+        else:
+            sponsor_first = r.get('sponsor_first') or ''
+            sponsor_party = r.get('sponsor_party') or ''
+            is_individual = bool(sponsor_first and sponsor_party)
+            if is_individual:
+                sponsor_name = r['sponsor_name'] or ''
+                sponsor_email = (r['sponsor_email'] or '').lower()
+            elif r.get('cosponsor_name'):
+                sponsor_name = r['cosponsor_name']
+                sponsor_email = (r.get('cosponsor_email') or '').lower()
+            else:
+                sponsor_name = ''
+                sponsor_email = ''
+        rating = existing_ratings.get(sponsor_email) if sponsor_email else None
+
+        # Committee: parse from first committee referral in bill events
+        committee = ''
+        _evt = r.get('committee_event') or ''
+        if _evt:
+            import re as _re
+            m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
+            if m:
+                committee = m.group(1).strip()
+
+        # Chamber from bill number prefix
+        bn = r['bill_number'] or ''
+        chamber = 'House' if bn.upper().startswith('H') else 'Senate' if bn.upper().startswith('S') else ''
+
+        bills.append({
+            'bill_number': bn,
+            'topic': topic,
+            'status_label': status_label,
+            'status_color': status_color,
+            'sponsor_name': sponsor_name,
+            'committee': committee,
+            'rating': rating,
+            'days': days,
+            'last_action_fmt': last_action_fmt,
+            'chamber': chamber,
+            'introduced_date': str(intro) if intro else '',
+            'last_action_date': str(lad) if lad else '',
+        })
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "bills": bills,
+        "session_year": session_year,
+    })
+
+@app.get("/ratings", response_class=HTMLResponse)
+def ratings_page(request: Request):
+    redir = require_login(request)
+    if redir:
+        return redir
+    tenant = os.getenv('TENANT_ID', '')
+    session_year = DEFAULT_SESSION_YEAR
+    existing_ratings = get_ratings(tenant, session_year)
+    # Build legislator list with ratings attached
+    legs = []
+    for email, leg in LEGISLATORS.items():
+        legs.append({
+            'email': email,
+            'first_name': leg.get('first_name', ''),
+            'last_name': leg.get('last_name', ''),
+            'chamber': leg.get('chamber', ''),
+            'district': leg.get('district', ''),
+            'seat': leg.get('seat', ''),
+            'party': leg.get('party', ''),
+            'rating': existing_ratings.get(email),
+        })
+    legs.sort(key=lambda x: (x['chamber'], x['last_name'], x['first_name']))
+    return templates.TemplateResponse("ratings.html", {
+        "request": request,
+        "legislators": legs,
+        "session_year": session_year,
+    })
+
+@app.post("/ratings/save")
+async def ratings_save(request: Request):
+    redir = require_login(request)
+    if redir:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    tenant = os.getenv('TENANT_ID', '')
+    email = body.get('email', '').strip().lower()
+    session_year = body.get('session_year', DEFAULT_SESSION_YEAR)
+    rating = body.get('rating')
+    if not email:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "missing email"}, status_code=400)
+    if rating is None:
+        clear_rating(tenant, session_year, email)
+    else:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"error": "rating must be 1-5"}, status_code=400)
+        set_rating(tenant, session_year, email, rating)
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"ok": True})
 
 @app.post("/request", response_class=HTMLResponse)
 def request_bill(request: Request, bill: str = Form(...), session: str = Form(DEFAULT_SESSION_YEAR), csrf_token: str = Form("")):

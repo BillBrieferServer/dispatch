@@ -8,7 +8,7 @@
   </head>
   <body style="font-family:system-ui;max-width:720px;margin:48px auto;padding:0 16px;line-height:1.4;background:#fff;color:#111;">
     <div style="text-align:center;margin-bottom:24px;">
-      <img src="/static/Dome.png" alt="Idaho Capitol dome" style="width:220px;height:auto;display:inline-block;" />
+      <img src="/static/Dome.png" alt="Idaho Capitol dome" style="width:90px;height:auto;display:inline-block;" />
     </div>
     <h1 style="text-align:center;margin:0 0 10px 0;">Dispatch — Leadership Briefer</h1>
     <p style="text-align:center;color:#999;margin-top:-8px;margin-bottom:16px;font-size:0.85em;">
@@ -26,49 +26,69 @@
         </p>
       {% endif %}
 
-      <form method="post" action="/request" style="margin-top:26px">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-        <div style="display:flex;gap:16px;align-items:flex-start;">
-          <div style="flex:0 0 140px;">
-            <label style="display:block;margin-bottom:6px"><strong>Session</strong></label>
-            <select
-              name="session"
-              style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:16px;box-sizing:border-box;"
-            >
-              {% for year in sessions %}
-                <option value="{{ year }}" {% if year == default_session|int %}selected{% endif %}>{{ year }}</option>
-              {% endfor %}
-            </select>
+      <div style="display:flex;gap:14px;margin-top:28px;justify-content:center;flex-wrap:wrap;">
+        <a href="/dashboard" style="flex:1;min-width:180px;max-width:220px;display:block;padding:18px 14px;border:1px solid #ccc;border-radius:10px;text-align:center;text-decoration:none;color:#111;background:#fafafa;transition:background 0.15s;">
+          <div style="font-size:1.4em;margin-bottom:6px;">&#x1f4ca;</div>
+          <strong>Status Dashboard</strong>
+          <div style="font-size:0.85em;color:#777;margin-top:4px;">Track bill progress</div>
+        </a>
+        <a href="/ratings" style="flex:1;min-width:180px;max-width:220px;display:block;padding:18px 14px;border:1px solid #ccc;border-radius:10px;text-align:center;text-decoration:none;color:#111;background:#fafafa;transition:background 0.15s;">
+          <div style="font-size:1.4em;margin-bottom:6px;">&#x2b50;</div>
+          <strong>Ratings Manager</strong>
+          <div style="font-size:0.85em;color:#777;margin-top:4px;">Rate legislator interest</div>
+        </a>
+        <a href="#" id="briefer-toggle" onclick="toggleBrieferForm(event)" style="flex:1;min-width:180px;max-width:220px;display:block;padding:18px 14px;border:1px solid #ccc;border-radius:10px;text-align:center;text-decoration:none;color:#111;background:#fafafa;transition:background 0.15s;">
+          <div style="font-size:1.4em;margin-bottom:6px;">&#x1f4dd;</div>
+          <strong>Leadership Briefer</strong>
+          <div style="font-size:0.85em;color:#777;margin-top:4px;">Request a bill briefing</div>
+        </a>
+      </div>
+
+      <div id="briefer-form" style="display:none;margin-top:26px;">
+        <form method="post" action="/request">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <div style="flex:0 0 140px;">
+              <label style="display:block;margin-bottom:6px"><strong>Session</strong></label>
+              <select
+                name="session"
+                style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:16px;box-sizing:border-box;"
+              >
+                {% for year in sessions %}
+                  <option value="{{ year }}" {% if year == default_session|int %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="display:block;margin-bottom:6px"><strong>Bill Number</strong></label>
+              <input
+                type="text"
+                name="bill"
+                required
+                style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;font-size:16px;"
+                placeholder="Example: H0001 or S0001"
+              />
+            </div>
           </div>
-          <div style="flex:1;">
-            <label style="display:block;margin-bottom:6px"><strong>Bill Number</strong></label>
-            <input
-              type="text"
-              name="bill"
-              required
-              style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;font-size:16px;"
-              placeholder="Example: H0001 or S0001"
-            />
-          </div>
-        </div>
-        <div style="height:18px"></div>
-        <button
-          type="submit"
-          style="padding:10px 14px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer"
-        >
-          Request Briefer
-        </button>
-        <p style="margin-top:14px;font-size:0.9em;color:#555">
-          You'll see a confirmation page immediately.
-        </p>
-        <p style="font-size:10pt">This briefing combines official legislative documents and demographic data with AI analysis. All source data comes from verified government sources. AI is used to analyze and summarize &mdash; not to generate facts, statistics, or quotes.</p>
-        <p style="margin-top:12px;font-size:10pt;">
-          <a href="/about" style="color:#111;">How it works</a>
-        </p>
-        <p style="margin-top:12px;font-size:10pt;">
-          Questions? Contact <a href="mailto:info@billbriefer.com">info@billbriefer.com</a>.
-        </p>
-      </form>
+          <div style="height:18px"></div>
+          <button
+            type="submit"
+            style="padding:10px 14px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer"
+          >
+            Request Briefer
+          </button>
+          <p style="margin-top:14px;font-size:0.9em;color:#555">
+            You'll see a confirmation page immediately.
+          </p>
+          <p style="font-size:10pt">This briefing combines official legislative documents and demographic data with AI analysis. All source data comes from verified government sources. AI is used to analyze and summarize &mdash; not to generate facts, statistics, or quotes.</p>
+          <p style="margin-top:12px;font-size:10pt;">
+            <a href="/about" style="color:#111;">How it works</a>
+          </p>
+          <p style="margin-top:12px;font-size:10pt;">
+            Questions? Contact <a href="mailto:info@billbriefer.com">info@billbriefer.com</a>.
+          </p>
+        </form>
+      </div>
     {% else %}
       <p style="font-style:italic;color:#666;font-size:1.1em;text-align:center;margin:0 0 4px 0;">
         Legislative intelligence for Idaho leadership.
@@ -92,5 +112,23 @@
       </p>
     {% endif %}
       {% include "partials/footer.html" %}
+    <script>
+    function toggleBrieferForm(e) {
+      e.preventDefault();
+      var form = document.getElementById('briefer-form');
+      var btn = document.getElementById('briefer-toggle');
+      if (form.style.display === 'none') {
+        form.style.display = 'block';
+        btn.style.background = '#111';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#111';
+      } else {
+        form.style.display = 'none';
+        btn.style.background = '#fafafa';
+        btn.style.color = '#111';
+        btn.style.borderColor = '#ccc';
+      }
+    }
+    </script>
 </body>
 </html>

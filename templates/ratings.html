@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ratings Manager — Dispatch</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+      html, body { border:none; outline:none; }
+      body { font-family:system-ui; max-width:800px; margin:48px auto; padding:0 16px; line-height:1.4; background:#fff; color:#111; }
+      .filter-bar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+      .filter-bar label { font-size:0.9em; color:#555; }
+      .filter-bar select { padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px; background:#fff; }
+      .filter-bar input[type=checkbox] { margin-right:4px; }
+      table { width:100%; border-collapse:collapse; }
+      thead th { text-align:left; padding:8px 6px; border-bottom:2px solid #ddd; font-size:0.85em; color:#555; }
+      tbody tr { border-bottom:1px solid #eee; }
+      tbody td { padding:8px 6px; font-size:0.95em; vertical-align:middle; }
+      .rating-group { display:inline-flex; gap:4px; }
+      .rating-btn {
+        width:30px; height:30px; border:1px solid #ccc; border-radius:6px;
+        background:#fafafa; cursor:pointer; font-size:14px; font-weight:600;
+        color:#555; transition: all 0.15s; display:inline-flex; align-items:center; justify-content:center;
+        outline:none;
+      }
+      .rating-btn:hover { background:#e5e5e5; }
+      .rating-btn:focus { outline:none; }
+      .rating-btn.active { background:#111; color:#fff; border-color:#111; }
+      .party-r { color:#c0392b; }
+      .party-d { color:#2980b9; }
+      @media (max-width: 600px) {
+        .hide-mobile { display:none; }
+        .rating-btn { width:28px; height:28px; font-size:13px; }
+      }
+    </style>
+  </head>
+  <body>
+    <p style="margin-bottom:24px;"><a href="/" style="color:#111;text-decoration:none;">&larr; Home</a></p>
+    <h1 style="margin:0 0 8px 0;">Ratings Manager</h1>
+    <p style="color:#888;font-size:0.9em;margin:0 0 24px 0;">Session {{ session_year }} &middot; {{ legislators|length }} legislators</p>
+
+    <div class="filter-bar">
+      <div>
+        <label for="chamber-filter">Chamber:</label>
+        <select id="chamber-filter" onchange="applyFilters()">
+          <option value="House">House</option>
+          <option value="Senate">Senate</option>
+          <option value="Both">Both</option>
+        </select>
+      </div>
+      <div>
+        <label><input type="checkbox" id="unrated-filter" onchange="applyFilters()"> Show only unrated</label>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Rating</th>
+          <th>Name</th>
+          <th class="hide-mobile">Chamber</th>
+          <th>Dist</th>
+          <th>Party</th>
+        </tr>
+      </thead>
+      <tbody id="leg-table">
+        {% for leg in legislators %}
+        <tr data-chamber="{{ leg.chamber }}" data-email="{{ leg.email }}" data-rated="{{ '1' if leg.rating else '0' }}">
+          <td>
+            <div class="rating-group">
+              {% for n in range(1, 6) %}
+              <button type="button" class="rating-btn{% if leg.rating == n %} active{% endif %}" data-val="{{ n }}" onclick="setRating(this, '{{ leg.email }}', {{ n }})">{{ n }}</button>
+              {% endfor %}
+            </div>
+          </td>
+          <td>{{ leg.last_name }}, {{ leg.first_name }}</td>
+          <td class="hide-mobile">{{ 'H' if leg.chamber == 'House' else 'S' }}</td>
+          <td>{{ leg.district }}{{ leg.seat }}</td>
+          <td><span class="{{ 'party-r' if leg.party == 'Republican' else 'party-d' if leg.party == 'Democrat' else '' }}">{{ leg.party[0] if leg.party else '' }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% include "partials/footer.html" %}
+
+    <script>
+    function applyFilters() {
+      var chamber = document.getElementById('chamber-filter').value;
+      var unratedOnly = document.getElementById('unrated-filter').checked;
+      var rows = document.querySelectorAll('#leg-table tr');
+      rows.forEach(function(row) {
+        var rowChamber = row.getAttribute('data-chamber');
+        var isRated = row.getAttribute('data-rated') === '1';
+        var show = true;
+        if (chamber !== 'Both' && rowChamber !== chamber) show = false;
+        if (unratedOnly && isRated) show = false;
+        row.style.display = show ? '' : 'none';
+      });
+    }
+    // Apply default filter on load
+    applyFilters();
+
+    function setRating(btn, email, val) {
+      var group = btn.parentNode;
+      var isActive = btn.classList.contains('active');
+      var buttons = group.querySelectorAll('.rating-btn');
+      var row = btn.closest('tr');
+
+      if (isActive) {
+        // Clear rating
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        row.setAttribute('data-rated', '0');
+        fetch('/ratings/save', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: null})
+        });
+      } else {
+        // Set rating
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        row.setAttribute('data-rated', '1');
+        fetch('/ratings/save', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: val})
+        });
+      }
+      // Re-apply filter in case show only unrated is checked
+      applyFilters();
+    }
+    </script>
+  </body>
+</html>

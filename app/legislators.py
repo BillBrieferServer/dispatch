@@ -42,6 +42,7 @@ def _load_from_qibrain() -> Dict[str, Dict[str, Any]]:
             district = int(leg.get("district") or 0)
             seat = (leg.get("seat") or "").strip().upper()
             party = leg.get("party", "")
+            chamber = leg.get("chamber", "")
 
             # Build derived fields matching Excel-loaded structure
             first_initial = first_name[0] if first_name else ""
@@ -49,6 +50,7 @@ def _load_from_qibrain() -> Dict[str, Dict[str, Any]]:
             display_name = f"{title} {first_initial} {last_name}".strip()
 
             legislators[email] = {
+                "chamber": chamber,
                 "title": title,
                 "first_name": first_name,
                 "first_initial": first_initial,

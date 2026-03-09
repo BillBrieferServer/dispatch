@@ -1,0 +1,355 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Status Dashboard — Dispatch</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+      html, body { border:none; outline:none; }
+      body { font-family:system-ui; max-width:1000px; margin:0 auto; padding:0 16px; line-height:1.4; background:#fff; color:#111; }
+      .sticky-header {
+        position:sticky; top:0; z-index:20; background:#fff;
+        padding-top:20px; padding-bottom:12px;
+        border-bottom:1px solid #eee;
+      }
+      .sticky-header h1 { margin:0 0 6px 0; }
+      .sticky-header .meta { color:#888; font-size:0.9em; margin:0 0 14px 0; }
+      .sticky-header .back { margin-bottom:12px; }
+      .sticky-header .back a { color:#111; text-decoration:none; }
+      .filter-bar { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin:0; }
+      .filter-bar label { font-size:0.9em; color:#555; }
+      .filter-bar select { padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px; background:#fff; }
+      .filter-bar input[type=checkbox] { margin-right:2px; }
+      .rating-checks { display:inline-flex; gap:8px; align-items:center; }
+      .rating-checks label { display:inline-flex; align-items:center; gap:2px; font-weight:600; font-size:0.9em; }
+      .reset-btn { padding:4px 10px; border:1px solid #ccc; border-radius:6px; font-size:0.8em; background:#f5f5f5; cursor:pointer; color:#555; margin-left:4px; }
+      .reset-btn:hover { background:#eee; color:#111; }
+      #print-btn { padding:4px 10px; border:1px solid #ccc; border-radius:6px; font-size:0.8em; background:#f5f5f5; cursor:pointer; color:#555; margin-left:4px; }
+      #print-btn:hover { background:#eee; color:#111; }
+      table { width:100%; border-collapse:separate; border-spacing:0; margin-top:0; }
+      thead th {
+        position:sticky; z-index:15; background:#fff;
+        text-align:left; padding:8px 6px;
+        border-bottom:2px solid #ddd;
+        font-size:0.8em; color:#555; white-space:nowrap;
+        cursor:pointer; user-select:none;
+      }
+      thead th:hover { color:#111; }
+      .sort-arrow { font-size:0.7em; margin-left:3px; color:#ccc; }
+      .sort-arrow::before { content:'\2195'; }
+      thead th.sorted .sort-arrow { color:#111; }
+      thead th.sorted .sort-arrow::before { content:''; }
+      tbody tr { border-bottom:1px solid #eee; }
+      tbody td { padding:7px 6px; font-size:0.9em; vertical-align:middle; border-bottom:1px solid #eee; }
+      tbody tr:hover td { background:#f9f9f9; }
+      a.bill-link { color:#111; text-decoration:none; font-weight:600; }
+      a.bill-link:hover { text-decoration:underline; }
+      .topic { font-size:0.8em; color:#555; }
+      .status-pill {
+        display:inline-block; padding:3px 10px; border-radius:6px;
+        color:#fff; font-size:0.8em; font-weight:600; white-space:nowrap;
+      }
+      .sponsor { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9em; }
+      .committee { font-size:0.8em; color:#555; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .rating-val { font-weight:700; font-size:0.95em; text-align:center; }
+      .days-val { text-align:center; font-size:0.9em; color:#555; }
+      .last-action { font-size:0.85em; color:#555; white-space:nowrap; }
+      .blank { color:#ccc; }
+
+      .status-dropdown {
+        display:none; position:fixed; z-index:50;
+        background:#fff; border:1px solid #ddd; border-radius:6px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:170px;
+        padding:4px 0;
+      }
+      .status-dropdown.open { display:block; }
+      .status-dropdown div {
+        padding:6px 14px; font-size:0.85em; cursor:pointer;
+        color:#333; font-weight:400;
+      }
+      .status-dropdown div:hover { background:#f5f5f5; }
+      .status-dropdown div.active { font-weight:700; }
+      .status-dropdown .sd-pill {
+        display:inline-block; width:10px; height:10px; border-radius:3px;
+        margin-right:6px; vertical-align:middle;
+      }
+      .sponsor a { color:#111; text-decoration:none; cursor:pointer; }
+      .sponsor a:hover { text-decoration:underline; color:#4A90D9; }
+      .sponsor-active { font-size:0.75em; color:#888; margin-left:4px; cursor:pointer; }
+      .sponsor-active:hover { color:#CC3333; }
+      @media print {
+        @page { size: landscape; margin: 0.4in; }
+        .sticky-header { position:static; border-bottom:none; padding-top:0; }
+        .filter-bar, .back, .reset-btn, #print-btn { display:none !important; }
+        thead th { position:static; }
+        table { font-size:0.75em; }
+        tbody td { padding:4px 5px; }
+        .status-pill { padding:2px 6px; font-size:0.75em; }
+        a.bill-link { color:#111; }
+        tr[style*="display: none"] { display:none !important; }
+        .hide-mobile { display:table-cell !important; }
+        body { max-width:100%; }
+      }
+      @media (max-width: 700px) {
+        .hide-mobile { display:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sticky-header" id="sticky-header">
+      <p class="back"><a href="/">&larr; Home</a></p>
+      <h1>Status Dashboard</h1>
+      <p class="meta">Session {{ session_year }} &middot; <span id="bill-count">{{ bills|length }}</span> bills</p>
+      <div class="filter-bar">
+        <div>
+          <label for="chamber-filter">Chamber:</label>
+          <select id="chamber-filter">
+            <option value="House">House</option>
+            <option value="Senate">Senate</option>
+            <option value="Both">Both</option>
+          </select>
+        </div>
+        <div>
+          <label>Rating:</label>
+          <span class="rating-checks">
+            {% for n in range(1, 6) %}
+            <label><input type="checkbox" class="rating-cb" value="{{ n }}"> {{ n }}</label>
+            {% endfor %}
+          </span>
+          <button type="button" class="reset-btn" id="reset-filters">Reset</button>
+          <button type="button" id="print-btn" onclick="window.print()">Download PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <table id="dash-table">
+      <thead>
+        <tr>
+          <th data-col="bill">Bill <span class="sort-arrow"></span></th>
+          <th data-col="topic" class="hide-mobile">Topic <span class="sort-arrow"></span></th>
+          <th data-col="status" id="status-th"><span id="status-label">Status</span> <span class="sort-arrow"></span></th>
+          <th data-col="committee" class="hide-mobile">Committee <span class="sort-arrow"></span></th>
+          <th data-col="sponsor" class="hide-mobile">Sponsor <span class="sort-arrow"></span></th>
+          <th data-col="rating">Rating <span class="sort-arrow"></span></th>
+          <th data-col="days">Days <span class="sort-arrow"></span></th>
+          <th data-col="lastaction" class="sorted">Last Action <span class="sort-arrow">&#8595;</span></th>
+        </tr>
+      </thead>
+      <tbody id="bill-table">
+        {% for b in bills %}
+        <tr data-chamber="{{ b.chamber }}"
+            data-rating="{{ b.rating or '' }}"
+            data-bill="{{ b.bill_number }}"
+            data-topic="{{ b.topic }}"
+            data-status="{{ b.status_label }}"
+            data-committee="{{ b.committee }}"
+            data-sponsor="{{ b.sponsor_name }}"
+            data-days="{{ b.days if b.days is not none else '' }}"
+            data-lastaction="{{ b.last_action_date }}">
+          <td><a class="bill-link" href="https://legislature.idaho.gov/sessioninfo/2026/legislation/{{ b.bill_number }}/" target="_blank">{{ b.bill_number }}</a></td>
+          <td class="topic hide-mobile">{% if b.topic %}{{ b.topic }}{% else %}<span class="blank">-</span>{% endif %}</td>
+          <td><span class="status-pill" style="background:{{ b.status_color }}">{{ b.status_label }}</span></td>
+          <td class="committee hide-mobile" title="{{ b.committee }}">{% if b.committee %}{{ b.committee }}{% else %}<span class="blank">-</span>{% endif %}</td>
+          <td class="sponsor hide-mobile" title="{{ b.sponsor_name }}">{% if b.sponsor_name %}<a onclick="filterSponsor('{{ b.sponsor_name|e }}')">{{ b.sponsor_name }}</a>{% else %}<span class="blank">-</span>{% endif %}</td>
+          <td class="rating-val">{{ b.rating or '' }}</td>
+          <td class="days-val">{% if b.days is not none %}{{ b.days }}{% else %}-{% endif %}</td>
+          <td class="last-action">{{ b.last_action_fmt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% include "partials/footer.html" %}
+    <div class="status-dropdown" id="status-dropdown">
+      <div data-status="" class="active">All</div>
+      <div data-status="Introduced"><span class="sd-pill" style="background:#4A90D9"></span>Introduced</div>
+      <div data-status="In Committee"><span class="sd-pill" style="background:#E8A020"></span>In Committee</div>
+      <div data-status="Committee Action"><span class="sd-pill" style="background:#E07020"></span>Committee Action</div>
+      <div data-status="Passed Chamber"><span class="sd-pill" style="background:#2E8B2E"></span>Passed Chamber</div>
+      <div data-status="Held / Failed"><span class="sd-pill" style="background:#CC3333"></span>Held / Failed</div>
+      <div data-status="Second Chamber"><span class="sd-pill" style="background:#7B52AB"></span>Second Chamber</div>
+      <div data-status="With Governor"><span class="sd-pill" style="background:#888888"></span>With Governor</div>
+      <div data-status="Signed into Law"><span class="sd-pill" style="background:#1A5C1A"></span>Signed into Law</div>
+      <div data-status="Vetoed"><span class="sd-pill" style="background:#8B1A1A"></span>Vetoed</div>
+    </div>
+
+
+    <script>
+    (function() {
+      var currentCol = 'lastaction';
+      var statusFilter = '';
+      var sponsorFilter = '';
+      var currentDir = 'desc';
+
+      // Measure sticky header and set thead top dynamically
+      function setTheadTop() {
+        var hdr = document.getElementById('sticky-header');
+        var h = hdr.offsetHeight;
+        var ths = document.querySelectorAll('#dash-table thead th');
+        ths.forEach(function(th) { th.style.top = h + 'px'; });
+      }
+      setTheadTop();
+      window.addEventListener('resize', setTheadTop);
+
+      function applyFilters() {
+        var chamber = document.getElementById('chamber-filter').value;
+        var checkedRatings = [];
+        document.querySelectorAll('.rating-cb:checked').forEach(function(cb) {
+          checkedRatings.push(cb.value);
+        });
+        var rows = document.querySelectorAll('#bill-table tr');
+        var visible = 0;
+        rows.forEach(function(row) {
+          var rowChamber = row.getAttribute('data-chamber');
+          var rowRating = row.getAttribute('data-rating');
+          var show = true;
+          if (chamber !== 'Both' && rowChamber !== chamber) show = false;
+          if (checkedRatings.length > 0 && checkedRatings.indexOf(rowRating) === -1) show = false;
+          if (statusFilter && row.getAttribute('data-status') !== statusFilter) show = false;
+          if (sponsorFilter && row.getAttribute('data-sponsor') !== sponsorFilter) show = false;
+          row.style.display = show ? '' : 'none';
+          if (show) visible++;
+        });
+        document.getElementById('bill-count').textContent = visible;
+      }
+
+      function doSort(col) {
+        if (currentCol === col) {
+          currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          currentCol = col;
+          currentDir = 'asc';
+        }
+
+        var headers = document.querySelectorAll('#dash-table thead th');
+        headers.forEach(function(h) {
+          h.classList.remove('sorted');
+          var arrow = h.querySelector('.sort-arrow');
+          if (arrow) arrow.innerHTML = '';
+        });
+        var active = document.querySelector('th[data-col="' + col + '"]');
+        if (active) {
+          active.classList.add('sorted');
+          var arrow = active.querySelector('.sort-arrow');
+          if (arrow) arrow.innerHTML = currentDir === 'asc' ? '&#8593;' : '&#8595;';
+        }
+
+        var tbody = document.getElementById('bill-table');
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        var isNumeric = (col === 'rating' || col === 'days');
+
+        rows.sort(function(a, b) {
+          var av = a.getAttribute('data-' + col) || '';
+          var bv = b.getAttribute('data-' + col) || '';
+          var result;
+          if (isNumeric) {
+            var an = av === '' ? -1 : parseInt(av);
+            var bn = bv === '' ? -1 : parseInt(bv);
+            result = an - bn;
+          } else {
+            result = av.localeCompare(bv);
+          }
+          return currentDir === 'desc' ? -result : result;
+        });
+        rows.forEach(function(row) { tbody.appendChild(row); });
+      }
+
+      // Bind column header sorting
+      document.querySelectorAll('#dash-table thead th[data-col]').forEach(function(th) {
+        if (th.getAttribute('data-col') === 'status') return; // handled by dropdown
+        th.addEventListener('click', function(e) {
+          e.preventDefault();
+          doSort(this.getAttribute('data-col'));
+        });
+      });
+
+      // Bind filter handlers
+      document.getElementById('chamber-filter').addEventListener('change', applyFilters);
+      document.querySelectorAll('.rating-cb').forEach(function(cb) {
+        cb.addEventListener('change', applyFilters);
+      });
+
+
+      // Status dropdown
+      var statusTh = document.getElementById('status-th');
+      var statusDD = document.getElementById('status-dropdown');
+      var statusLabel = document.getElementById('status-label');
+
+      statusTh.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (statusDD.classList.contains('open')) {
+          statusDD.classList.remove('open');
+          return;
+        }
+        var rect = statusTh.getBoundingClientRect();
+        statusDD.style.top = (rect.bottom + 2) + 'px';
+        statusDD.style.left = rect.left + 'px';
+        statusDD.classList.add('open');
+      });
+
+      statusDD.querySelectorAll('div[data-status]').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+          e.stopPropagation();
+          statusFilter = this.getAttribute('data-status');
+          statusDD.querySelectorAll('div').forEach(function(d) { d.classList.remove('active'); });
+          this.classList.add('active');
+          statusLabel.textContent = statusFilter ? 'Status ▾' : 'Status';
+          statusDD.classList.remove('open');
+          applyFilters();
+        });
+      });
+
+      document.addEventListener('click', function() {
+        statusDD.classList.remove('open');
+      });
+
+
+      // Sponsor filter
+      var sponsorLabel = document.querySelector('th[data-col="sponsor"]');
+      var sponsorOrigHTML = sponsorLabel.innerHTML;
+
+      window.filterSponsor = function(name) {
+        if (sponsorFilter === name) {
+          sponsorFilter = '';
+          sponsorLabel.innerHTML = sponsorOrigHTML;
+        } else {
+          sponsorFilter = name;
+          sponsorLabel.innerHTML = 'Sponsor: ' + name + ' <span class="sponsor-active">&times;</span>';
+        }
+        applyFilters();
+      };
+
+      // Click sponsor header to clear sponsor filter
+      sponsorLabel.addEventListener('click', function(e) {
+        if (sponsorFilter) {
+          e.stopPropagation();
+          e.preventDefault();
+          sponsorFilter = '';
+          sponsorLabel.innerHTML = sponsorOrigHTML;
+          applyFilters();
+        }
+      });
+
+      // Reset all filters
+      document.getElementById('reset-filters').addEventListener('click', function() {
+        document.getElementById('chamber-filter').value = 'House';
+        document.querySelectorAll('.rating-cb').forEach(function(cb) { cb.checked = false; });
+        statusFilter = '';
+        var statusLbl = document.getElementById('status-label');
+        if (statusLbl) statusLbl.textContent = 'Status';
+        var statusDD = document.getElementById('status-dropdown');
+        if (statusDD) {
+          statusDD.querySelectorAll('div').forEach(function(d) { d.classList.remove('active'); });
+          statusDD.querySelector('div[data-status=""]').classList.add('active');
+        }
+        sponsorFilter = '';
+        sponsorLabel.innerHTML = sponsorOrigHTML;
+        applyFilters();
+      });
+
+      applyFilters();
+    })();
+    </script>
+  </body>
+</html>
