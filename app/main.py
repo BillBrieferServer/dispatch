@@ -214,6 +214,14 @@ def current_user(request: Request) -> Optional[Dict[str, Any]]:
                         "chamber": session.get("chamber"),
                         "auth_type": "password"
                     }
+                    # Check allowlist — user must be currently authorized
+                    current_allow = _load_allowlist()
+                    manual_users = _load_manual_users()
+                    manual_emails = {k.strip().lower() for k in manual_users.keys()}
+                    if email not in current_allow and email not in manual_emails:
+                        # Not on allowlist — treat as not logged in
+                        return None
+
                     # Enrich with legislator data
                     leg_data = LEGISLATORS.get(email)
                     if leg_data:

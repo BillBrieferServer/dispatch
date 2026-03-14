@@ -93,23 +93,16 @@ import json as _json
 def is_authorized_email(email: str) -> bool:
     """Check if email is authorized to register.
 
-    Checks (in order):
-    1. QIBrain legislators table (active members only)
-    2. Manual allowlist file (data/allowlist_emails.txt)
-    3. Manual users JSON (data/manual_users.json)
+    Authorization requires manual approval via /admin/users.
+    Being an active legislator alone is NOT sufficient — users must pay for service.
+
+    Checks:
+    1. Manual allowlist file (data/allowlist_emails.txt)
+    2. Manual users JSON (data/manual_users.json)
     """
     email_lower = email.strip().lower()
 
-    # Check 1: QIBrain legislators table (active members only)
-    try:
-        from app.services.qibrain_data import get_legislator
-        legislator = get_legislator(email=email_lower)
-        if legislator:
-            return True
-    except Exception:
-        pass  # QIBrain unavailable — fall through to local checks
-
-    # Check 2: Manual allowlist file
+    # Check 1: Manual allowlist file
     allowlist_path = Path("/app/data/allowlist_emails.txt")
     if allowlist_path.exists():
         allowlist = {
