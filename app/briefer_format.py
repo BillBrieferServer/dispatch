@@ -244,6 +244,7 @@ def _format_vote_record(individual_votes: List[Dict[str, Any]], session_year: Op
                 y_count = parsed_y
                 n_count = parsed_n
                 a_count = parsed_other
+            lines = []
             lines.append(f"**{chamber_name} ({y_count}-{n_count}-{a_count})**")
             formatted = []
             for v in votes_list:
