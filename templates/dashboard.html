@@ -25,6 +25,16 @@
       .rating-checks label { display:inline-flex; align-items:center; gap:2px; font-weight:600; font-size:0.9em; }
       .reset-btn { padding:4px 10px; border:1px solid #ccc; border-radius:6px; font-size:0.8em; background:#f5f5f5; cursor:pointer; color:#555; margin-left:4px; }
       .reset-btn:hover { background:#eee; color:#111; }
+      .attribution-note { font-size:0.8em; color:#888; margin:6px 0 2px 0; }
+      .attribution-note a { color:#888; text-decoration:underline; cursor:pointer; }
+      .attribution-note a:hover { color:#555; }
+      .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1000; justify-content:center; align-items:center; }
+      .modal-overlay.active { display:flex; }
+      .modal-box { background:#fff; border-radius:10px; padding:28px 32px; max-width:520px; width:90%; box-shadow:0 4px 24px rgba(0,0,0,0.18); position:relative; }
+      .modal-box h3 { margin:0 0 14px 0; font-size:1.1em; }
+      .modal-box p { font-size:0.92em; color:#444; line-height:1.6; margin:0 0 12px 0; }
+      .modal-close { position:absolute; top:12px; right:16px; font-size:1.3em; cursor:pointer; color:#999; background:none; border:none; }
+      .modal-close:hover { color:#333; }
       #print-btn { padding:4px 10px; border:1px solid #ccc; border-radius:6px; font-size:0.8em; background:#f5f5f5; cursor:pointer; color:#555; margin-left:4px; }
       #print-btn:hover { background:#eee; color:#111; }
       table { width:100%; border-collapse:separate; border-spacing:0; margin-top:0; }
@@ -120,6 +130,18 @@
           <button type="button" class="reset-btn" id="reset-filters">Reset</button>
           <button type="button" id="print-btn" onclick="window.print()">Download PDF</button>
         </div>
+      </div>
+    </div>
+
+    <p class="attribution-note">Sponsors identified from each bill's official Statement of Purpose. <a onclick="document.getElementById('attr-modal').classList.add('active')">Learn more</a></p>
+
+    <div class="modal-overlay" id="attr-modal" onclick="if(event.target===this)this.classList.remove('active')">
+      <div class="modal-box">
+        <button class="modal-close" onclick="document.getElementById('attr-modal').classList.remove('active')">&times;</button>
+        <h3>How We Identify Sponsors</h3>
+        <p>Most Idaho bills are officially introduced by committees, not individual legislators. To identify the legislator behind each bill, we use the contact name listed on the bill's Statement of Purpose (SOP) &mdash; a public document filed with every piece of legislation.</p>
+        <p>Approximately 98% of 2026 session bills have an individual legislator identified this way. For the small number where the SOP lists a state agency contact rather than a legislator, we show the chair of the introducing committee as the responsible party.</p>
+        <p>This attribution is automated and updated hourly. It reflects the most likely sponsor based on official records, not a confirmed authorship claim.</p>
       </div>
     </div>
 
