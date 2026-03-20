@@ -577,7 +577,7 @@ async def group_watch(request: Request):
 
                     bill_positions.append({
                         'bill_number': bill_number,
-                        'topic': (row['description'] or '').split(' -- ')[0][:60] if row.get('description') and ' -- ' in (row['description'] or '') else (row['title'] or '')[:60],
+                        'topic': ((row['description'] or '').split(' -- ')[0] + ': ' + (row['title'] or ''))[:120] if row.get('description') and ' -- ' in (row['description'] or '') else (row['title'] or '')[:120],
                         'chamber': chamber,
                         'status_label': status_label,
                         'status_color': status_color,
