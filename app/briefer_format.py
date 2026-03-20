@@ -244,12 +244,6 @@ def _format_vote_record(individual_votes: List[Dict[str, Any]], session_year: Op
                 y_count = parsed_y
                 n_count = parsed_n
                 a_count = parsed_other
-            official_total = (off_yea or 0) + (off_nay or 0) + (off_other or 0)
-            parsed_total = len(votes_list)
-            missing_count = official_total - parsed_total if off_yea is not None and parsed_total < official_total else 0
-            lines = []
-            if missing_count > 0:
-                lines.append(f"({missing_count} legislator name(s) unavailable in source data)")
             lines.append(f"**{chamber_name} ({y_count}-{n_count}-{a_count})**")
             formatted = []
             for v in votes_list:
