@@ -30,7 +30,7 @@ except ImportError:
 
 from app.legislators import LEGISLATORS
 from app.ratings import init_ratings_db, get_ratings, set_rating, clear_rating
-from app.bill_status import classify_status
+from app.bill_status import classify_status, is_procedural_stage
 
 load_dotenv()
 
@@ -445,7 +445,7 @@ def dashboard(request: Request):
                 topic = _tm.group(1).strip().rstrip(' -')
 
         # Status classification
-        status_label, status_color = classify_status(r['last_action'])
+        status_label, status_color = classify_status(r.get('committee'), r.get('last_action'))
 
         # Days calculation
         intro = r.get('effective_intro_date') or r.get('introduced_date')
@@ -466,16 +466,20 @@ def dashboard(request: Request):
             sponsor_email = (r.get('sponsor_email') or '').lower()
         rating = existing_ratings.get(sponsor_email) if sponsor_email else None
 
-        # Committee: parse from referral event, fall back to bills.committee
+        # Committee: show actual committee, not procedural stages
         committee = ''
-        _evt = r.get('committee_event') or ''
-        if _evt:
-            import re as _re
-            m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
-            if m:
-                committee = m.group(1).strip()
-        if not committee and r.get('committee'):
-            committee = r['committee']
+        raw_committee = r.get('committee') or ''
+        if raw_committee and not is_procedural_stage(raw_committee):
+            # Current location IS a committee — use it directly
+            committee = raw_committee
+        else:
+            # Bill has moved past committee — get committee from referral event
+            _evt = r.get('committee_event') or ''
+            if _evt:
+                import re as _re
+                m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
+                if m:
+                    committee = m.group(1).strip()
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
