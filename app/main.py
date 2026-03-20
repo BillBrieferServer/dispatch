@@ -398,24 +398,10 @@ def dashboard(request: Request):
     cur.execute("""
         SELECT b.bill_id, b.bill_number, b.title, b.subjects,
                b.introduced_date, b.last_action_date, b.last_action,
-               bs.name AS sponsor_name, bs.first_name AS sponsor_first,
-               bs.party AS sponsor_party,
+               b.committee,
+               ba.attributed_name AS sponsor_name,
+               ba.attribution_source,
                lg.email AS sponsor_email,
-               -- First co-sponsor fallback, filtered to same chamber as bill
-               (SELECT bc.legislator_name FROM idaho.bill_cosponsors bc
-                JOIN idaho.legislators l3 ON l3.legislator_id = bc.legislator_id
-                WHERE bc.bill_id = b.bill_id
-                  AND CASE WHEN b.bill_number LIKE 'H%%' THEN l3.chamber = 'H'
-                           WHEN b.bill_number LIKE 'S%%' THEN l3.chamber = 'S'
-                           ELSE true END
-                ORDER BY bc.id LIMIT 1) AS cosponsor_name,
-               (SELECT l2.email FROM idaho.bill_cosponsors bc2
-                JOIN idaho.legislators l2 ON l2.legislator_id = bc2.legislator_id
-                WHERE bc2.bill_id = b.bill_id
-                  AND CASE WHEN b.bill_number LIKE 'H%%' THEN l2.chamber = 'H'
-                           WHEN b.bill_number LIKE 'S%%' THEN l2.chamber = 'S'
-                           ELSE true END
-                ORDER BY bc2.id LIMIT 1) AS cosponsor_email,
                -- First committee referral from bill events
                (SELECT be.event_text FROM idaho.bill_events be
                 WHERE be.bill_id = b.bill_id
@@ -425,10 +411,9 @@ def dashboard(request: Request):
                 ORDER BY be.sequence_order LIMIT 1) AS committee_event
         FROM idaho.bills b
         JOIN idaho.sessions s ON b.legiscan_session_id = s.legiscan_session_id
-        LEFT JOIN idaho.bill_sponsors bs
-            ON bs.bill_id = b.bill_id AND bs.sponsor_type = 1 AND bs.sponsor_order = 1
+        LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
         LEFT JOIN idaho.legislators lg
-            ON lg.legiscan_people_id = bs.legiscan_people_id AND lg.is_active = true
+            ON lg.legislator_id = ba.attributed_legislator_id
         WHERE s.year = %s
         ORDER BY b.last_action_date DESC NULLS LAST, b.bill_number
     """, (int(session_year),))
@@ -467,28 +452,18 @@ def dashboard(request: Request):
         lad = r['last_action_date']
         last_action_fmt = lad.strftime('%m/%d') if lad else ''
 
-        # Sponsor: demo assignment, then individual, then co-sponsor fallback
+        # Sponsor: demo override, then bill_attribution
         bn = r['bill_number'] or ''
         demo = demo_sponsors.get(bn)
         if demo:
             sponsor_name = demo['name']
             sponsor_email = demo['email'].lower()
         else:
-            sponsor_first = r.get('sponsor_first') or ''
-            sponsor_party = r.get('sponsor_party') or ''
-            is_individual = bool(sponsor_first and sponsor_party)
-            if is_individual:
-                sponsor_name = r['sponsor_name'] or ''
-                sponsor_email = (r['sponsor_email'] or '').lower()
-            elif r.get('cosponsor_name'):
-                sponsor_name = r['cosponsor_name']
-                sponsor_email = (r.get('cosponsor_email') or '').lower()
-            else:
-                sponsor_name = ''
-                sponsor_email = ''
+            sponsor_name = (r.get('sponsor_name') or '').replace('Representative ', '').replace('Senator ', '')
+            sponsor_email = (r.get('sponsor_email') or '').lower()
         rating = existing_ratings.get(sponsor_email) if sponsor_email else None
 
-        # Committee: parse from first committee referral in bill events
+        # Committee: parse from referral event, fall back to bills.committee
         committee = ''
         _evt = r.get('committee_event') or ''
         if _evt:
@@ -496,6 +471,8 @@ def dashboard(request: Request):
             m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
             if m:
                 committee = m.group(1).strip()
+        if not committee and r.get('committee'):
+            committee = r['committee']
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
