@@ -30,7 +30,7 @@ except ImportError:
 
 from app.legislators import LEGISLATORS
 from app.ratings import init_ratings_db, get_ratings, set_rating, clear_rating
-from app.bill_status import classify_status, is_procedural_stage
+from app.bill_status import classify_status, is_procedural_stage, normalize_committee_name
 
 load_dotenv()
 
@@ -466,12 +466,12 @@ def dashboard(request: Request):
             sponsor_email = (r.get('sponsor_email') or '').lower()
         rating = existing_ratings.get(sponsor_email) if sponsor_email else None
 
-        # Committee: show actual committee, not procedural stages
+        # Committee: show actual committee name, not procedural stages or short codes
         committee = ''
         raw_committee = r.get('committee') or ''
         if raw_committee and not is_procedural_stage(raw_committee):
-            # Current location IS a committee — use it directly
-            committee = raw_committee
+            # Current location IS a committee — normalize it
+            committee = normalize_committee_name(raw_committee)
         else:
             # Bill has moved past committee — get committee from referral event
             _evt = r.get('committee_event') or ''
@@ -479,7 +479,7 @@ def dashboard(request: Request):
                 import re as _re
                 m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
                 if m:
-                    committee = m.group(1).strip()
+                    committee = normalize_committee_name(m.group(1).strip())
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
