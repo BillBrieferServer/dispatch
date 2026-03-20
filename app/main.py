@@ -400,6 +400,9 @@ def dashboard(request: Request):
                b.introduced_date, b.last_action_date, b.last_action,
                b.committee,
                ba.attributed_name AS sponsor_name,
+               COALESCE(b.introduced_date,
+                   (SELECT MIN(be2.event_date) FROM idaho.bill_events be2
+                    WHERE be2.bill_id = b.bill_id)) AS effective_intro_date,
                ba.attribution_source,
                lg.email AS sponsor_email,
                -- First committee referral from bill events
@@ -445,7 +448,7 @@ def dashboard(request: Request):
         status_label, status_color = classify_status(r['last_action'])
 
         # Days calculation
-        intro = r['introduced_date']
+        intro = r.get('effective_intro_date') or r.get('introduced_date')
         days = (today - intro).days if intro else None
 
         # Last action date formatted MM/DD
