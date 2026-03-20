@@ -30,8 +30,6 @@
     .pos-oppose { color:#c02020; font-weight:600; }
     .pos-monitor, .pos-tag { color:#b08800; }
     .pos-neutral { color:#888; }
-    .diverge-row, .diverge-row:nth-child(even) { background:#fff8e1 !important; }
-    .diverge-icon { display:inline-block; width:14px; height:14px; line-height:14px; text-align:center;
                     background:#f59e0b; color:#fff; border-radius:50%; font-size:0.65em; font-weight:700;
                     vertical-align:middle; margin-right:3px; cursor:help; }
     .table-wrap { overflow-x:auto; }
@@ -68,8 +66,6 @@
     </tr></thead>
     <tbody>
     {% for bp in bill_positions %}
-    <tr data-chamber="{{ bp.chamber }}" class="{% if bp.divergence %}diverge-row{% endif %}">
-      <td>{% if bp.divergence %}<span class="diverge-icon" title="IFF / IACI divergence">!</span>{% endif %}{{ bp.bill_number }}</td>
       <td class="hide-mobile topic-cell" title="{{ bp.topic }}">{{ bp.topic }}</td>
       {% for org in position_orgs %}
       {% set pos = bp.positions.get(org, '') %}
