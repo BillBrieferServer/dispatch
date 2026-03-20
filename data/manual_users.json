@@ -7,12 +7,12 @@
     "name": "Steve Brown",
     "district": 28
   },
-  "steve@billbriefer.com": {
-    "name": "Steve Brown",
-    "district": 29
-  },
   "m.jeremy.field@gmail.com": {
     "name": "Jeremy Field",
     "district": 20
+  },
+  "steve@billbriefer.com": {
+    "name": "Steve Brown",
+    "district": 29
   }
 }

@@ -512,6 +512,194 @@ def dashboard(request: Request):
         "session_year": session_year,
     })
 
+
+# ─── Group Watch ─────────────────────────────────────────
+@app.get("/group-watch", response_class=HTMLResponse)
+async def group_watch(request: Request):
+    """Advocacy positions & legislator scorecards cross-reference."""
+    user = current_user(request)
+    if not user:
+        return RedirectResponse("/auth/login", status_code=302)
+
+    from app.services.qibrain_data import get_qibrain_connection
+
+    conn = get_qibrain_connection()
+    try:
+        with conn.cursor() as cur:
+            # --- Table 1: Bill Positions ---
+            # Get all bills with at least one advocacy position
+            cur.execute("""
+                SELECT DISTINCT ap.bill_id
+                FROM dispatch.advocacy_positions ap
+                JOIN idaho.bills b ON b.bill_id = ap.bill_id
+                WHERE b.legiscan_session_id = 2246
+            """)
+            position_bill_ids = [r[0] for r in cur.fetchall()]
+
+            bill_positions = []
+            if position_bill_ids:
+                placeholders = ','.join(['%s'] * len(position_bill_ids))
+                cur.execute(f"""
+                    SELECT b.bill_id, b.bill_number, b.title, b.committee,
+                           ba.attributed_name,
+                           COALESCE(b.introduced_date,
+                               (SELECT MIN(be2.event_date) FROM idaho.bill_events be2
+                                WHERE be2.bill_id = b.bill_id)) AS effective_intro_date
+                    FROM idaho.bills b
+                    LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
+                    WHERE b.bill_id IN ({placeholders})
+                    ORDER BY b.bill_number
+                """, position_bill_ids)
+                bills_data = cur.fetchall()
+
+                # Get all positions in one query
+                cur.execute(f"""
+                    SELECT bill_id, org_name, position
+                    FROM dispatch.advocacy_positions
+                    WHERE bill_id IN ({placeholders})
+                """, position_bill_ids)
+                pos_rows = cur.fetchall()
+
+                # Build position lookup: bill_id -> {org: position}
+                pos_map = {}
+                for r in pos_rows:
+                    if r[0] not in pos_map:
+                        pos_map[r[0]] = {}
+                    pos_map[r[0]][r[1]] = r[2]
+
+                from app.bill_status import classify_status, normalize_committee_name, is_procedural_stage
+
+                for row in bills_data:
+                    bill_id = row[0]
+                    bill_number = row[1]
+                    committee_raw = row[3] or ''
+                    status_label, status_color = classify_status(committee_raw)
+                    sponsor = row[4] or ''
+                    # Strip title prefix
+                    for pfx in ('Representative ', 'Senator '):
+                        if sponsor.startswith(pfx):
+                            sponsor = sponsor[len(pfx):]
+                    chamber = 'House' if bill_number.startswith('H') else 'Senate'
+                    positions = pos_map.get(bill_id, {})
+
+                    # Check IFF/IACI divergence
+                    iff_pos = positions.get('IFF', '')
+                    iaci_pos = positions.get('IACI', '')
+                    divergence = False
+                    if iff_pos and iaci_pos:
+                        sup_opp = {'support', 'oppose'}
+                        if {iff_pos, iaci_pos} == sup_opp:
+                            divergence = True
+
+                    bill_positions.append({
+                        'bill_number': bill_number,
+                        'topic': (row[2] or '')[:80],
+                        'chamber': chamber,
+                        'status_label': status_label,
+                        'status_color': status_color,
+                        'sponsor': sponsor,
+                        'positions': positions,
+                        'divergence': divergence,
+                    })
+
+            # Determine which orgs have position data
+            position_orgs = sorted(set(
+                org for bp in bill_positions for org in bp['positions'].keys()
+            ))
+            # Preferred order
+            org_order = ['IFF', 'IACI', 'CVI', 'ICL', 'CAI', 'ACLU Idaho', 'IWF']
+            position_orgs = [o for o in org_order if o in position_orgs] + \
+                            [o for o in position_orgs if o not in org_order]
+
+            # --- Table 2: Legislator Scorecards ---
+            cur.execute("""
+                SELECT l.legislator_id, l.first_name, l.last_name, l.party,
+                       l.district_id, l.chamber
+                FROM idaho.legislators l
+                WHERE l.is_active = true
+                ORDER BY l.chamber, l.district_id
+            """)
+            legislators = cur.fetchall()
+
+            # Get all scores
+            cur.execute("""
+                SELECT ls.legislator_id, ls.org_name, ls.vote_index, ls.year
+                FROM dispatch.legislator_scores ls
+                JOIN idaho.legislators l ON l.legislator_id = ls.legislator_id
+                WHERE l.is_active = true
+                ORDER BY ls.org_name, ls.year DESC
+            """)
+            score_rows = cur.fetchall()
+
+            # Build score lookup: leg_id -> {org: {pct, year}}
+            score_map = {}
+            for r in score_rows:
+                leg_id = r[0]
+                org = r[1]
+                if leg_id not in score_map:
+                    score_map[leg_id] = {}
+                if org not in score_map[leg_id]:  # first = most recent year
+                    score_map[leg_id][org] = {
+                        'pct': round(float(r[2]), 1) if r[2] is not None else None,
+                        'year': r[3],
+                    }
+
+            score_orgs = sorted(set(
+                org for sm in score_map.values() for org in sm.keys()
+            ))
+            score_org_order = ['IFF', 'IACI', 'CPAC', 'IFBF', 'ACLU Idaho']
+            score_orgs = [o for o in score_org_order if o in score_orgs] + \
+                         [o for o in score_orgs if o not in score_org_order]
+
+            legislator_scores = []
+            for leg in legislators:
+                leg_id = leg[0]
+                scores = score_map.get(leg_id, {})
+                legislator_scores.append({
+                    'name': f"{leg[1]} {leg[2]}",
+                    'party': leg[3] or '',
+                    'district': leg[4] or '',
+                    'chamber': leg[5] or '',
+                    'scores': scores,
+                })
+
+            # Build score legend
+            org_full = {
+                "IACI": "Idaho Association of Commerce & Industry",
+                "IFF": "Idaho Freedom Foundation",
+                "IFBF": "Idaho Farm Bureau Federation",
+                "ACLU Idaho": "ACLU of Idaho",
+                "CPAC": "CPAC Center for Legislative Accountability",
+                "CVI": "Conservation Voters of Idaho",
+                "ICL": "Idaho Conservation League",
+                "CAI": "Citizens Alliance of Idaho",
+                "IWF": "Idaho Wildlife Federation",
+            }
+            score_legend_parts = []
+            for org in score_orgs:
+                # Find most common year for this org
+                years = [score_map[lid][org]['year']
+                         for lid in score_map if org in score_map[lid]
+                         and score_map[lid][org]['year']]
+                year = max(set(years), key=years.count) if years else ''
+                full = org_full.get(org, org)
+                score_legend_parts.append(f"{org} = {full} ({year})")
+            score_legend = ' | '.join(score_legend_parts)
+
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse("group_watch.html", {
+        "request": request,
+        "user": user,
+        "bill_positions": bill_positions,
+        "position_orgs": position_orgs,
+        "legislator_scores": legislator_scores,
+        "score_orgs": score_orgs,
+        "score_legend": score_legend,
+    })
+
+
 @app.get("/ratings", response_class=HTMLResponse)
 def ratings_page(request: Request):
     redir = require_login(request)
