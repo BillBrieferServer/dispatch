@@ -633,7 +633,7 @@ async def scorecards(request: Request):
                        l.district_id, l.chamber
                 FROM idaho.legislators l
                 WHERE l.is_active = true
-                ORDER BY l.chamber, l.district_id
+                ORDER BY l.last_name, l.first_name
             """)
             legislators = cur.fetchall()
 
