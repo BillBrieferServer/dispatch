@@ -666,7 +666,7 @@ async def scorecards(request: Request):
                 leg_id = leg['legislator_id']
                 scores = score_map.get(leg_id, {})
                 legislator_scores.append({
-                    'name': f"{leg['first_name']} {leg['last_name']}",
+                    'name': f"{leg['last_name']}, {leg['first_name']}",
                     'party': leg['party'] or '',
                     'district': leg['district_id'] or '',
                     'chamber': leg['chamber'] or '',
