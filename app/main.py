@@ -484,6 +484,8 @@ def dashboard(request: Request):
             # Third fallback: introducing committee from bill_attribution
             if not committee and r.get('attribution_committee'):
                 committee = normalize_committee_name(r['attribution_committee'])
+        if not committee:
+            committee = 'Filed / No Committee'
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
