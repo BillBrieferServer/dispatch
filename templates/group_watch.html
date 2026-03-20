@@ -8,7 +8,7 @@
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body { font-family:system-ui,-apple-system,sans-serif; background:#fff; color:#111; }
-    .wrap { max-width:1200px; margin:0 auto; padding:16px; }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; }
     h1 { text-align:center; margin:8px 0 2px; font-size:1.4em; }
     .subtitle { text-align:center; color:#888; font-size:0.85em; margin-bottom:12px; }
     .home-link { display:inline-block; margin-bottom:8px; color:#555; text-decoration:none; font-size:0.9em; }
@@ -20,6 +20,7 @@
          padding:7px 6px; text-align:left; border-bottom:2px solid #ccc; white-space:nowrap; }
     th:hover { background:#e8e8e8; }
     td { padding:6px; border-bottom:1px solid #eee; }
+    .topic-cell { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     tbody tr:nth-child(even) { background:#f0f0f0; }
     tr:hover { background:#f0f0f0; }
     .sort-arrow { font-size:0.7em; opacity:0.4; }
@@ -69,7 +70,7 @@
     {% for bp in bill_positions %}
     <tr data-chamber="{{ bp.chamber }}" class="{% if bp.divergence %}diverge-row{% endif %}">
       <td>{% if bp.divergence %}<span class="diverge-icon" title="IFF / IACI divergence">!</span>{% endif %}{{ bp.bill_number }}</td>
-      <td class="hide-mobile">{{ bp.topic }}</td>
+      <td class="hide-mobile topic-cell" title="{{ bp.topic }}">{{ bp.topic }}</td>
       {% for org in position_orgs %}
       {% set pos = bp.positions.get(org, '') %}
       <td style="text-align:center;" class="{% if pos == 'support' %}pos-support{% elif pos == 'oppose' %}pos-oppose{% elif pos in ('monitor','tag') %}pos-monitor{% elif pos == 'neutral' %}pos-neutral{% endif %}">
