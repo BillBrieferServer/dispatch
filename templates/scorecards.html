@@ -8,7 +8,7 @@
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body { font-family:system-ui,-apple-system,sans-serif; background:#fff; color:#111; }
-    .wrap { max-width:1000px; margin:0 auto; padding:0 16px; }
+    .wrap { max-width:1000px; margin:0 auto; padding:16px; }
     h1 { text-align:center; margin:8px 0 2px; font-size:1.4em; }
     .subtitle { text-align:center; color:#888; font-size:0.85em; margin-bottom:12px; }
     .home-link { display:inline-block; margin-bottom:8px; color:#555; text-decoration:none; font-size:0.9em; }
@@ -27,8 +27,7 @@
     th.sorted .sort-arrow { opacity:1; }
     .score-cell { text-align:center; font-variant-numeric:tabular-nums; }
     .legend { font-size:0.78em; color:#777; margin-top:12px; line-height:1.6; }
-    .page-header { position:sticky; top:0; z-index:10; background:#fff; padding:16px 0 0; }
-    .table-wrap { overflow-x:auto; }
+    .table-wrap { overflow:auto; max-height:calc(100vh - 160px); }
     @media (max-width:700px) {
       .hide-mobile { display:none; }
       table { font-size:0.78em; }
@@ -37,7 +36,6 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="page-header">
   <a href="/" class="home-link">&larr; Home</a>
   <h1>Scorecards</h1>
   <p class="subtitle">Legislator Advocacy Scores &mdash; Session 2026</p>
@@ -50,7 +48,6 @@
       <option value="Senate">Senate</option>
     </select>
     <span style="color:#888;font-size:0.82em;margin-left:8px;" id="leg-count"></span>
-  </div>
   </div>
 
   <div class="table-wrap">
