@@ -539,7 +539,7 @@ async def group_watch(request: Request):
             if position_bill_ids:
                 placeholders = ','.join(['%s'] * len(position_bill_ids))
                 cur.execute(f"""
-                    SELECT b.bill_id, b.bill_number, b.title, b.committee,
+                    SELECT b.bill_id, b.bill_number, b.title, b.description, b.committee,
                            ba.attributed_name
                     FROM idaho.bills b
                     LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
@@ -577,7 +577,7 @@ async def group_watch(request: Request):
 
                     bill_positions.append({
                         'bill_number': bill_number,
-                        'topic': (row['title'] or '')[:80],
+                        'topic': (row['description'] or '').split(' -- ')[0][:60] if row.get('description') and ' -- ' in (row['description'] or '') else (row['title'] or '')[:60],
                         'chamber': chamber,
                         'status_label': status_label,
                         'status_color': status_color,
