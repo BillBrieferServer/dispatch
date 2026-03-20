@@ -10,22 +10,44 @@ STATUS_GROUPS = {
     "introduced":       ("Introduced",       "#4A90D9"),
     "in_committee":     ("In Committee",     "#E8A020"),
     "committee_action": ("Amending Order",   "#E07020"),
-    "floor_vote":       ("3rd Reading",      "#6B8ED6"),
+    "second_reading":   ("2nd Reading",      "#5B9BD5"),
+    "floor_vote":       ("Floor Vote",       "#6B8ED6"),
     "passed_chamber":   ("Passed Chamber",   "#2E8B2E"),
-    "held_failed":      ("Held / Failed",    "#CC3333"),
     "second_chamber":   ("Second Chamber",   "#7B52AB"),
-    "with_governor":    ("With Governor",    "#888888"),
+    "with_governor":    ("With Governor",    "#D4A017"),
     "signed_law":       ("Signed into Law",  "#1A5C1A"),
+    "held_failed":      ("Held / Failed",    "#CC3333"),
     "vetoed":           ("Vetoed",           "#8B1A1A"),
 }
 
 # Procedural stage patterns found in bills.committee field
 # These indicate the bill has moved beyond a committee
+# Order matters — first match wins
 _STAGE_PATTERNS = [
-    ("PASSED",    "passed_chamber"),
-    ("3rd Rdg",   "floor_vote"),
-    ("14th Ord",  "committee_action"),
-    ("FAILED",    "held_failed"),
+    # Terminal
+    ("LAW",         "signed_law"),
+    ("ADOPTED",     "signed_law"),
+    ("Vetoed",      "vetoed"),
+    # Governor
+    ("To Gov",      "with_governor"),
+    ("To enrol",    "with_governor"),
+    ("Sp signed",   "with_governor"),
+    ("Pres signed", "with_governor"),
+    ("To Sec",      "with_governor"),
+    # Failed/held
+    ("FAILED",      "held_failed"),
+    ("Filed",       "held_failed"),
+    ("Held",        "held_failed"),
+    # Chamber passage
+    ("PASSED",      "passed_chamber"),
+    # Floor stages
+    ("3rd Rdg",     "floor_vote"),
+    ("Gen Ord",     "floor_vote"),
+    ("2nd Rdg",     "second_reading"),
+    ("14th Ord",    "committee_action"),
+    ("10th Ord",    "committee_action"),
+    # Pre-floor
+    ("printing",    "introduced"),
 ]
 
 
