@@ -404,6 +404,7 @@ def dashboard(request: Request):
                    (SELECT MIN(be2.event_date) FROM idaho.bill_events be2
                     WHERE be2.bill_id = b.bill_id)) AS effective_intro_date,
                ba.attribution_source,
+               ba.committee_name AS attribution_committee,
                lg.email AS sponsor_email,
                -- First committee referral from bill events
                (SELECT be.event_text FROM idaho.bill_events be
@@ -480,6 +481,9 @@ def dashboard(request: Request):
                 m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
                 if m:
                     committee = normalize_committee_name(m.group(1).strip())
+            # Third fallback: introducing committee from bill_attribution
+            if not committee and r.get('attribution_committee'):
+                committee = normalize_committee_name(r['attribution_committee'])
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
