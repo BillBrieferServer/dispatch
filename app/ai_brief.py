@@ -136,210 +136,64 @@ def _extract_district_num(district_str: str) -> str:
 
 
 def _build_sponsor_context(bill_id: int) -> str:
-    """Assemble sponsor data from QIBrain for AI context."""
+    """Assemble sponsor data from bill_attribution for AI context."""
     try:
-        from app.services.qibrain_data import get_bill_sponsors, get_qibrain_connection
-        sponsors = get_bill_sponsors(bill_id)
-        if not sponsors:
-            return "Committee-sponsored bill \u2014 no named individual sponsor."
-
-        primary = sponsors[0]
-        name = primary.get("name", "Unknown")
-        first_name = primary.get("first_name", "")
-        last_name = primary.get("last_name", "")
-        party = primary.get("party", "")
-        district = primary.get("district", "")
-
-        is_committee = not first_name and not party
-
-        if not is_committee:
-            # Individual sponsor — existing logic
-            district_num = _extract_district_num(district)
-            lines = [f"Primary sponsor: {name} ({party}), District {district_num or district}"]
-            conn = get_qibrain_connection()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        SELECT count(*) as cnt FROM idaho.bills b
-                        JOIN bill_sponsors bs ON b.bill_id = bs.bill_id
-                        WHERE bs.name = %s AND bs.sponsor_order = 1
-                        AND b.legiscan_session_id = 2246
-                    """, (name,))
-                    row = cur.fetchone()
-                    bill_count = row["cnt"] if row else 0
-                    lines.append(f"Bills sponsored this session: {bill_count}")
-
-                    cur.execute("""
-                        SELECT year, score, possible_score, vote_index
-                        FROM dispatch.legislator_scores
-                        WHERE legislator_id = (
-                            SELECT legislator_id FROM idaho.legislators
-                            WHERE last_name = %s AND district_id = %s AND is_active = true
-                            LIMIT 1
-                        )
-                        AND org_name = 'IACI'
-                        ORDER BY year DESC
-                    """, (last_name, district_num))
-                    scores = cur.fetchall()
-                    if scores:
-                        score_lines = []
-                        for s in scores:
-                            score_lines.append(
-                                f"  {s['year']}: {s['score']}/{s['possible_score']} "
-                                f"(index: {s['vote_index']})"
-                            )
-                        lines.append("IACI scores (multi-year):")
-                        lines.extend(score_lines)
-                    else:
-                        lines.append("IACI scores: not available")
-            finally:
-                conn.close()
-            return "\n".join(lines)
-
-        # Committee sponsor — find individual contacts
-        lines = [f"Committee: {name}"]
+        from app.services.qibrain_data import get_qibrain_connection
         conn = get_qibrain_connection()
         try:
             with conn.cursor() as cur:
-                # Check bill_cosponsors first
+                # Get attribution from bill_attribution table
                 cur.execute("""
-                    SELECT bc.legislator_name, l.party, l.district_id
-                    FROM idaho.bill_cosponsors bc
+                    SELECT ba.attributed_legislator_id, ba.attributed_name,
+                           ba.attribution_source, ba.committee_name,
+                           l.party, l.district_id, l.chamber
+                    FROM idaho.bill_attribution ba
                     LEFT JOIN idaho.legislators l
-                        ON l.legislator_id = bc.legislator_id
-                    WHERE bc.bill_id = %s
-                    ORDER BY bc.id
+                        ON l.legislator_id = ba.attributed_legislator_id
+                    WHERE ba.bill_id = %s
                 """, (bill_id,))
-                cosponsors = cur.fetchall()
+                attr = cur.fetchone()
 
-                individuals = []
-                if cosponsors:
-                    for cs in cosponsors:
-                        individuals.append({
-                            'name': cs['legislator_name'],
-                            'party': cs.get('party', ''),
-                            'district': str(cs.get('district_id', '')),
-                        })
+                if not attr or not attr.get('attributed_legislator_id'):
+                    return "Committee-sponsored bill — no named individual sponsor."
+
+                name = attr['attributed_name']
+                party = attr.get('party', '')
+                district = attr.get('district_id', '')
+                leg_id = attr['attributed_legislator_id']
+
+                lines = [f"Primary sponsor: {name} ({party}), District {district}"]
+
+                # Bill count using legislator_id
+                cur.execute("""
+                    SELECT count(*) as cnt
+                    FROM idaho.bill_attribution
+                    WHERE attributed_legislator_id = %s
+                """, (leg_id,))
+                row = cur.fetchone()
+                lines.append(f"Bills sponsored this session: {row['cnt'] if row else 0}")
+
+                # IACI scores
+                cur.execute("""
+                    SELECT year, score, possible_score, vote_index
+                    FROM dispatch.legislator_scores
+                    WHERE legislator_id = %s AND org_name = 'IACI'
+                    ORDER BY year DESC
+                """, (leg_id,))
+                scores = cur.fetchall()
+                if scores:
+                    lines.append("IACI scores (multi-year):")
+                    for s in scores:
+                        lines.append(
+                            f"  {s['year']}: {s['score']}/{s['possible_score']} "
+                            f"(index: {s['vote_index']})"
+                        )
                 else:
-                    # Parse SOP text for contacts
-                    cur.execute("SELECT sop_text FROM idaho.bills WHERE bill_id = %s", (bill_id,))
-                    row = cur.fetchone()
-                    sop_text = row['sop_text'] if row and row.get('sop_text') else ''
-                    sop_contacts = _parse_sop_contacts(sop_text)
-                    for sc in sop_contacts:
-                        # Resolve to legislator for party/district
-                        full = sc['full_name']
-                        parts = full.split()
-                        if len(parts) >= 2:
-                            search_first = parts[0]
-                            # Try progressively longer last names for multi-word surnames
-                            matches = []
-                            for split_pos in range(len(parts)-1, 0, -1):
-                                candidate_last = ' '.join(parts[split_pos:])
-                                cur.execute("""
-                                    SELECT first_name, last_name, party, district_id
-                                    FROM idaho.legislators
-                                    WHERE last_name = %s AND is_active = true
-                                    ORDER BY district_id
-                                """, (candidate_last,))
-                                matches = cur.fetchall()
-                                if matches:
-                                    break
-                            matches = matches
-                            if len(matches) == 1:
-                                m = matches[0]
-                                individuals.append({
-                                    'name': f"{m['first_name']} {m['last_name']}",
-                                    'party': m.get('party', ''),
-                                    'district': str(m.get('district_id', '')),
-                                })
-                            elif len(matches) > 1:
-                                # Multiple matches — try first name
-                                for m in matches:
-                                    if m['first_name'] and m['first_name'].lower().startswith(search_first.lower()):
-                                        individuals.append({
-                                            'name': f"{m['first_name']} {m['last_name']}",
-                                            'party': m.get('party', ''),
-                                            'district': str(m.get('district_id', '')),
-                                        })
-                                        break
-                                else:
-                                    # No first-name match — likely not a legislator (agency contact)
-                                    pass
-                            else:
-                                # No match found — likely agency staff, not a legislator
-                                pass
+                    lines.append("IACI scores: not available")
 
-                if individuals:
-                    contact_strs = []
-                    for ind in individuals:
-                        s = ind['name']
-                        if ind['party']:
-                            s += f" ({ind['party']})"
-                        if ind['district']:
-                            s += f", District {ind['district']}"
-                        contact_strs.append(s)
-                    lines.append(f"Primary contacts: {', '.join(contact_strs)}")
-
-                    # IACI scores for each individual
-                    for ind in individuals:
-                        ind_name = ind['name']
-                        ind_parts = ind_name.replace('Representative ', '').replace('Senator ', '').split()
-                        if not ind_parts:
-                            continue
-                        ind_last = ind_parts[-1]
-                        ind_district = ind.get('district', '')
-
-                        if ind_district:
-                            cur.execute("""
-                                SELECT year, score, possible_score, vote_index
-                                FROM dispatch.legislator_scores
-                                WHERE legislator_id = (
-                                    SELECT legislator_id FROM idaho.legislators
-                                    WHERE last_name = %s AND district_id = %s AND is_active = true
-                                    LIMIT 1
-                                )
-                                AND org_name = 'IACI'
-                                ORDER BY year DESC
-                            """, (ind_last, ind_district))
-                        else:
-                            cur.execute("""
-                                SELECT year, score, possible_score, vote_index
-                                FROM dispatch.legislator_scores ls
-                                JOIN idaho.legislators l ON l.legislator_id = ls.legislator_id
-                                WHERE l.last_name = %s AND l.is_active = true
-                                AND ls.org_name = 'IACI'
-                                ORDER BY ls.year DESC
-                            """, (ind_last,))
-                        scores = cur.fetchall()
-                        if scores:
-                            lines.append(f"IACI scores for {ind_name}:")
-                            for s in scores:
-                                lines.append(
-                                    f"  {s['year']}: {s['score']}/{s['possible_score']} "
-                                    f"(index: {s['vote_index']})"
-                                )
-
-                    # Bill count for each individual
-                    for ind in individuals:
-                        ind_name = ind['name'].replace('Representative ', '').replace('Senator ', '')
-                        cur.execute("""
-                            SELECT count(*) as cnt FROM idaho.bills b
-                            JOIN bill_sponsors bs ON b.bill_id = bs.bill_id
-                            WHERE (bs.name = %s OR bs.name LIKE %s)
-                            AND bs.sponsor_order = 1
-                            AND b.legiscan_session_id = 2246
-                        """, (ind_name, f'%{ind_name}%'))
-                        row = cur.fetchone()
-                        cnt = row['cnt'] if row else 0
-                        if cnt > 0:
-                            lines.append(f"Bills sponsored by {ind_name} this session: {cnt}")
-                else:
-                    lines.append("No individual contacts identified.")
+                return "\n".join(lines)
         finally:
             conn.close()
-
-        return "\n".join(lines)
     except Exception as e:
         logger.warning(f"Failed to build sponsor context: {e}")
         return "Sponsor data unavailable."
@@ -537,20 +391,109 @@ def _get_advocacy_positions(bill_id: int) -> dict:
 def _build_sponsor_display(bill_id: int) -> dict:
     """
     Build deterministic sponsor display data for Section 2 rendering.
-
-    Returns: {
-        "contacts": [
-            {"name": "Jordan Redman", "title": "Rep.", "ld": "LD3",
-             "bills_this_session": 4,
-             "scores": [{"org": "IACI", "pct": 38.2, "year": 2026}, ...]},
-            ...
-        ],
-        "committee": "Business Committee" or None,
-        "chamber": "House" or "Senate",
-        "cosponsors": [{"name": "...", "title": "Rep.", "ld": "LD4"}, ...],
-    }
+    Uses bill_attribution table instead of SOP parsing.
     """
     if not bill_id:
+        return {"contacts": [], "committee": None, "chamber": "", "cosponsors": []}
+
+    try:
+        from app.services.qibrain_data import get_qibrain_connection
+        conn = get_qibrain_connection()
+        try:
+            with conn.cursor() as cur:
+                # Get attribution
+                cur.execute("""
+                    SELECT ba.attributed_legislator_id, ba.attributed_name,
+                           ba.attribution_source, ba.committee_name,
+                           l.party, l.district_id, l.chamber, l.first_name, l.last_name
+                    FROM idaho.bill_attribution ba
+                    LEFT JOIN idaho.legislators l
+                        ON l.legislator_id = ba.attributed_legislator_id
+                    WHERE ba.bill_id = %s
+                """, (bill_id,))
+                attr = cur.fetchone()
+
+                contacts = []
+                committee_name = None
+                chamber = ""
+
+                if attr and attr.get('attributed_legislator_id'):
+                    leg_id = attr['attributed_legislator_id']
+                    name = attr['attributed_name']
+                    chamber = attr.get('chamber', '') or ''
+                    title = "Rep." if chamber == "House" else "Sen." if chamber == "Senate" else ""
+                    district = attr.get('district_id', '')
+                    ld = f"LD{district}" if district else ""
+
+                    if attr.get('attribution_source') in ('committee_chair',):
+                        committee_name = attr.get('committee_name')
+
+                    # Bill count
+                    cur.execute("""
+                        SELECT count(*) as cnt
+                        FROM idaho.bill_attribution
+                        WHERE attributed_legislator_id = %s
+                    """, (leg_id,))
+                    row = cur.fetchone()
+                    bills_count = row['cnt'] if row else 0
+
+                    # All org scores (most recent year per org)
+                    scores = []
+                    cur.execute("""
+                        SELECT org_name, vote_index, year
+                        FROM dispatch.legislator_scores
+                        WHERE legislator_id = %s
+                        ORDER BY org_name, year DESC
+                    """, (leg_id,))
+                    seen_orgs = set()
+                    for sr in cur.fetchall():
+                        org = sr['org_name']
+                        if org not in seen_orgs:
+                            seen_orgs.add(org)
+                            vi = sr.get('vote_index')
+                            if vi is not None:
+                                scores.append({
+                                    "org": org,
+                                    "pct": round(float(vi), 1),
+                                    "year": sr.get('year'),
+                                })
+                    scores.sort(key=lambda s: (0 if s['org'] == 'IACI' else 1, s['org']))
+
+                    contacts.append({
+                        "name": name,
+                        "title": title,
+                        "ld": ld,
+                        "bills_this_session": bills_count,
+                        "scores": scores,
+                    })
+
+                # Cosponsors
+                cosponsors_list = []
+                cur.execute("""
+                    SELECT bc.legislator_name, l.district_id, l.chamber
+                    FROM idaho.bill_cosponsors bc
+                    JOIN idaho.legislators l ON l.legislator_id = bc.legislator_id
+                    WHERE bc.bill_id = %s
+                    ORDER BY l.chamber, l.last_name
+                """, (bill_id,))
+                for cs in cur.fetchall():
+                    cs_title = "Rep." if cs['chamber'] == 'House' else "Sen."
+                    cosponsors_list.append({
+                        "name": cs['legislator_name'],
+                        "title": cs_title,
+                        "ld": f"LD{cs['district_id']}" if cs.get('district_id') else "",
+                    })
+
+                return {
+                    "contacts": contacts,
+                    "committee": committee_name,
+                    "chamber": chamber,
+                    "cosponsors": cosponsors_list,
+                }
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to build sponsor display: {e}")
         return {"contacts": [], "committee": None, "chamber": "", "cosponsors": []}
 
     try:
