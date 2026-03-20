@@ -23,6 +23,7 @@
     tbody tr:nth-child(even) { background:#f0f0f0; }
     tr:hover { background:#e8e8e8; }
     .sort-arrow { font-size:0.7em; opacity:0.4; }
+    .sort-hint { font-size:0.6em; opacity:0.35; margin-left:2px; }
     th.sorted .sort-arrow { opacity:1; }
     .score-cell { text-align:center; font-variant-numeric:tabular-nums; }
     .legend { font-size:0.78em; color:#777; margin-top:12px; line-height:1.6; }
@@ -52,12 +53,12 @@
   <div class="table-wrap">
   <table id="scores-table">
     <thead><tr>
-      <th data-col="name" data-type="text">Name <span class="sort-arrow"></span></th>
-      <th data-col="party" data-type="text">Party <span class="sort-arrow"></span></th>
-      <th data-col="district" data-type="num">District <span class="sort-arrow"></span></th>
-      <th data-col="chamber" data-type="text" class="hide-mobile">Chamber <span class="sort-arrow"></span></th>
+      <th data-col="name" data-type="text">Name <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
+      <th data-col="party" data-type="text">Party <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
+      <th data-col="district" data-type="num">District <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
+      <th data-col="chamber" data-type="text" class="hide-mobile">Chamber <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
       {% for org in score_orgs %}
-      <th data-col="score-{{ org }}" data-type="num" style="text-align:center;">{{ org }} <span class="sort-arrow"></span></th>
+      <th data-col="score-{{ org }}" data-type="num" style="text-align:center;">{{ org }} <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
