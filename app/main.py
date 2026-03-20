@@ -534,7 +534,7 @@ async def group_watch(request: Request):
                 JOIN idaho.bills b ON b.bill_id = ap.bill_id
                 WHERE b.legiscan_session_id = 2246
             """)
-            position_bill_ids = [r[0] for r in cur.fetchall()]
+            position_bill_ids = [r['bill_id'] for r in cur.fetchall()]
 
             bill_positions = []
             if position_bill_ids:
@@ -563,18 +563,19 @@ async def group_watch(request: Request):
                 # Build position lookup: bill_id -> {org: position}
                 pos_map = {}
                 for r in pos_rows:
-                    if r[0] not in pos_map:
-                        pos_map[r[0]] = {}
-                    pos_map[r[0]][r[1]] = r[2]
+                    bid = r['bill_id']
+                    if bid not in pos_map:
+                        pos_map[bid] = {}
+                    pos_map[bid][r['org_name']] = r['position']
 
                 from app.bill_status import classify_status, normalize_committee_name, is_procedural_stage
 
                 for row in bills_data:
-                    bill_id = row[0]
-                    bill_number = row[1]
-                    committee_raw = row[3] or ''
+                    bill_id = row['bill_id']
+                    bill_number = row['bill_number']
+                    committee_raw = row['committee'] or ''
                     status_label, status_color = classify_status(committee_raw)
-                    sponsor = row[4] or ''
+                    sponsor = row['attributed_name'] or ''
                     # Strip title prefix
                     for pfx in ('Representative ', 'Senator '):
                         if sponsor.startswith(pfx):
@@ -593,7 +594,7 @@ async def group_watch(request: Request):
 
                     bill_positions.append({
                         'bill_number': bill_number,
-                        'topic': (row[2] or '')[:80],
+                        'topic': (row['title'] or '')[:80],
                         'chamber': chamber,
                         'status_label': status_label,
                         'status_color': status_color,
@@ -634,14 +635,14 @@ async def group_watch(request: Request):
             # Build score lookup: leg_id -> {org: {pct, year}}
             score_map = {}
             for r in score_rows:
-                leg_id = r[0]
-                org = r[1]
+                leg_id = r['legislator_id']
+                org = r['org_name']
                 if leg_id not in score_map:
                     score_map[leg_id] = {}
                 if org not in score_map[leg_id]:  # first = most recent year
                     score_map[leg_id][org] = {
-                        'pct': round(float(r[2]), 1) if r[2] is not None else None,
-                        'year': r[3],
+                        'pct': round(float(r['vote_index']), 1) if r['vote_index'] is not None else None,
+                        'year': r['year'],
                     }
 
             score_orgs = sorted(set(
@@ -653,13 +654,13 @@ async def group_watch(request: Request):
 
             legislator_scores = []
             for leg in legislators:
-                leg_id = leg[0]
+                leg_id = leg['legislator_id']
                 scores = score_map.get(leg_id, {})
                 legislator_scores.append({
-                    'name': f"{leg[1]} {leg[2]}",
-                    'party': leg[3] or '',
-                    'district': leg[4] or '',
-                    'chamber': leg[5] or '',
+                    'name': f"{leg['first_name']} {leg['last_name']}",
+                    'party': leg['party'] or '',
+                    'district': leg['district_id'] or '',
+                    'chamber': leg['chamber'] or '',
                     'scores': scores,
                 })
 
