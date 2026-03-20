@@ -67,7 +67,7 @@
     <tbody>
     {% for bp in bill_positions %}
     <tr data-chamber="{{ bp.chamber }}">
-      <td>{{ bp.bill_number }}</td>
+      <td><a href="https://legislature.idaho.gov/sessioninfo/2026/legislation/{{ bp.bill_number }}/" target="_blank" style="color:#111;text-decoration:none;border-bottom:1px dotted #999;">{{ bp.bill_number }}</a></td>
       <td class="hide-mobile topic-cell" title="{{ bp.topic }}">{{ bp.topic }}</td>
       {% for org in position_orgs %}
       {% set pos = bp.positions.get(org, '') %}
