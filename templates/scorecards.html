@@ -3,47 +3,40 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Group Watch — Dispatch</title>
+  <title>Scorecards — Dispatch</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body { font-family:system-ui,-apple-system,sans-serif; background:#fff; color:#111; }
-    .wrap { max-width:1200px; margin:0 auto; padding:16px; }
+    .wrap { max-width:1000px; margin:0 auto; padding:16px; }
     h1 { text-align:center; margin:8px 0 2px; font-size:1.4em; }
     .subtitle { text-align:center; color:#888; font-size:0.85em; margin-bottom:12px; }
     .home-link { display:inline-block; margin-bottom:8px; color:#555; text-decoration:none; font-size:0.9em; }
     .home-link:hover { color:#111; }
     .filter-bar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
     .filter-bar select { padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:0.9em; }
-    table { width:100%; border-collapse:collapse; font-size:0.82em; }
+    table { width:100%; border-collapse:collapse; font-size:0.85em; }
     th { background:#f5f5f5; position:sticky; top:0; z-index:5; cursor:pointer; user-select:none;
-         padding:7px 6px; text-align:left; border-bottom:2px solid #ccc; white-space:nowrap; }
+         padding:8px 6px; text-align:left; border-bottom:2px solid #ccc; white-space:nowrap; }
     th:hover { background:#e8e8e8; }
-    td { padding:6px; border-bottom:1px solid #eee; }
+    td { padding:7px 6px; border-bottom:1px solid #eee; }
     tr:hover { background:#fafafa; }
     .sort-arrow { font-size:0.7em; opacity:0.4; }
     th.sorted .sort-arrow { opacity:1; }
-    .status-pill { display:inline-block; padding:2px 8px; border-radius:10px; color:#fff; font-size:0.78em; font-weight:600; white-space:nowrap; }
-    .pos-support { color:#1a7a1a; font-weight:600; }
-    .pos-oppose { color:#c02020; font-weight:600; }
-    .pos-monitor, .pos-tag { color:#b08800; }
-    .pos-neutral { color:#888; }
-    .diverge-row { background:#fff8e1 !important; }
-    .diverge-icon { display:inline-block; width:14px; height:14px; line-height:14px; text-align:center;
-                    background:#f59e0b; color:#fff; border-radius:50%; font-size:0.65em; font-weight:700;
-                    vertical-align:middle; margin-right:3px; cursor:help; }
+    .score-cell { text-align:center; font-variant-numeric:tabular-nums; }
+    .legend { font-size:0.78em; color:#777; margin-top:12px; line-height:1.6; }
     .table-wrap { overflow-x:auto; }
     @media (max-width:700px) {
       .hide-mobile { display:none; }
-      table { font-size:0.75em; }
+      table { font-size:0.78em; }
     }
   </style>
 </head>
 <body>
 <div class="wrap">
   <a href="/" class="home-link">&larr; Home</a>
-  <h1>Group Watch</h1>
-  <p class="subtitle">Advocacy Positions on Bills &mdash; Session 2026</p>
+  <h1>Scorecards</h1>
+  <p class="subtitle">Legislator Advocacy Scores &mdash; Session 2026</p>
 
   <div class="filter-bar">
     <label>Chamber:</label>
@@ -52,38 +45,37 @@
       <option value="House">House</option>
       <option value="Senate">Senate</option>
     </select>
-    <span style="color:#888;font-size:0.82em;margin-left:8px;" id="bill-count"></span>
+    <span style="color:#888;font-size:0.82em;margin-left:8px;" id="leg-count"></span>
   </div>
 
   <div class="table-wrap">
-  <table id="positions-table">
+  <table id="scores-table">
     <thead><tr>
-      <th data-col="bill" data-type="text">Bill <span class="sort-arrow"></span></th>
-      <th data-col="topic" data-type="text" class="hide-mobile">Topic <span class="sort-arrow"></span></th>
-      <th data-col="status" data-type="text">Status <span class="sort-arrow"></span></th>
-      <th data-col="sponsor" data-type="text" class="hide-mobile">Sponsor <span class="sort-arrow"></span></th>
-      {% for org in position_orgs %}
-      <th data-col="org-{{ org }}" data-type="text" style="text-align:center;">{{ org }} <span class="sort-arrow"></span></th>
+      <th data-col="name" data-type="text">Name <span class="sort-arrow"></span></th>
+      <th data-col="party" data-type="text">Party <span class="sort-arrow"></span></th>
+      <th data-col="district" data-type="num">District <span class="sort-arrow"></span></th>
+      <th data-col="chamber" data-type="text" class="hide-mobile">Chamber <span class="sort-arrow"></span></th>
+      {% for org in score_orgs %}
+      <th data-col="score-{{ org }}" data-type="num" style="text-align:center;">{{ org }} <span class="sort-arrow"></span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
-    {% for bp in bill_positions %}
-    <tr data-chamber="{{ bp.chamber }}" class="{% if bp.divergence %}diverge-row{% endif %}">
-      <td>{% if bp.divergence %}<span class="diverge-icon" title="IFF / IACI divergence">!</span>{% endif %}{{ bp.bill_number }}</td>
-      <td class="hide-mobile">{{ bp.topic }}</td>
-      <td><span class="status-pill" style="background:{{ bp.status_color }}">{{ bp.status_label }}</span></td>
-      <td class="hide-mobile">{{ bp.sponsor }}</td>
-      {% for org in position_orgs %}
-      {% set pos = bp.positions.get(org, '') %}
-      <td style="text-align:center;" class="{% if pos == 'support' %}pos-support{% elif pos == 'oppose' %}pos-oppose{% elif pos in ('monitor','tag') %}pos-monitor{% elif pos == 'neutral' %}pos-neutral{% endif %}">
-        {% if pos == 'support' %}Support{% elif pos == 'oppose' %}Oppose{% elif pos == 'monitor' %}Monitor{% elif pos == 'tag' %}Track{% elif pos == 'neutral' %}Neutral{% endif %}
-      </td>
+    {% for leg in legislator_scores %}
+    <tr data-chamber="{{ leg.chamber }}">
+      <td>{{ leg.name }}</td>
+      <td>{{ leg.party }}</td>
+      <td>{{ leg.district }}</td>
+      <td class="hide-mobile">{{ leg.chamber }}</td>
+      {% for org in score_orgs %}
+      {% set s = leg.scores.get(org) %}
+      <td class="score-cell">{% if s and s.pct is not none %}{{ s.pct }}%{% endif %}</td>
       {% endfor %}
     </tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
+  <p class="legend">{{ score_legend }}</p>
 </div>
 
 {% include "partials/footer.html" %}
@@ -91,14 +83,14 @@
 <script>
 function applyFilter() {
   var ch = document.getElementById('chamber-filter').value;
-  var rows = document.getElementById('positions-table').querySelectorAll('tbody tr');
+  var rows = document.getElementById('scores-table').querySelectorAll('tbody tr');
   var count = 0;
   rows.forEach(function(r) {
     var show = (ch === 'Both' || r.dataset.chamber === ch);
     r.style.display = show ? '' : 'none';
     if (show) count++;
   });
-  document.getElementById('bill-count').textContent = count + ' bills with positions';
+  document.getElementById('leg-count').textContent = count + ' legislators';
 }
 
 document.querySelectorAll('th[data-col]').forEach(function(th) {

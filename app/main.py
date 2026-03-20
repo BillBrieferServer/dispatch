@@ -516,18 +516,17 @@ def dashboard(request: Request):
 # ─── Group Watch ─────────────────────────────────────────
 @app.get("/group-watch", response_class=HTMLResponse)
 async def group_watch(request: Request):
-    """Advocacy positions & legislator scorecards cross-reference."""
+    """Advocacy positions cross-reference — bills with org positions."""
     user = current_user(request)
     if not user:
         return RedirectResponse("/auth/login", status_code=302)
 
     from app.services.qibrain_data import get_qibrain_connection
+    from app.bill_status import classify_status
 
     conn = get_qibrain_connection()
     try:
         with conn.cursor() as cur:
-            # --- Table 1: Bill Positions ---
-            # Get all bills with at least one advocacy position
             cur.execute("""
                 SELECT DISTINCT ap.bill_id
                 FROM dispatch.advocacy_positions ap
@@ -541,10 +540,7 @@ async def group_watch(request: Request):
                 placeholders = ','.join(['%s'] * len(position_bill_ids))
                 cur.execute(f"""
                     SELECT b.bill_id, b.bill_number, b.title, b.committee,
-                           ba.attributed_name,
-                           COALESCE(b.introduced_date,
-                               (SELECT MIN(be2.event_date) FROM idaho.bill_events be2
-                                WHERE be2.bill_id = b.bill_id)) AS effective_intro_date
+                           ba.attributed_name
                     FROM idaho.bills b
                     LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
                     WHERE b.bill_id IN ({placeholders})
@@ -552,23 +548,17 @@ async def group_watch(request: Request):
                 """, position_bill_ids)
                 bills_data = cur.fetchall()
 
-                # Get all positions in one query
                 cur.execute(f"""
                     SELECT bill_id, org_name, position
                     FROM dispatch.advocacy_positions
                     WHERE bill_id IN ({placeholders})
                 """, position_bill_ids)
-                pos_rows = cur.fetchall()
-
-                # Build position lookup: bill_id -> {org: position}
                 pos_map = {}
-                for r in pos_rows:
+                for r in cur.fetchall():
                     bid = r['bill_id']
                     if bid not in pos_map:
                         pos_map[bid] = {}
                     pos_map[bid][r['org_name']] = r['position']
-
-                from app.bill_status import classify_status, normalize_committee_name, is_procedural_stage
 
                 for row in bills_data:
                     bill_id = row['bill_id']
@@ -576,21 +566,14 @@ async def group_watch(request: Request):
                     committee_raw = row['committee'] or ''
                     status_label, status_color = classify_status(committee_raw)
                     sponsor = row['attributed_name'] or ''
-                    # Strip title prefix
                     for pfx in ('Representative ', 'Senator '):
                         if sponsor.startswith(pfx):
                             sponsor = sponsor[len(pfx):]
                     chamber = 'House' if bill_number.startswith('H') else 'Senate'
                     positions = pos_map.get(bill_id, {})
-
-                    # Check IFF/IACI divergence
                     iff_pos = positions.get('IFF', '')
                     iaci_pos = positions.get('IACI', '')
-                    divergence = False
-                    if iff_pos and iaci_pos:
-                        sup_opp = {'support', 'oppose'}
-                        if {iff_pos, iaci_pos} == sup_opp:
-                            divergence = True
+                    divergence = bool(iff_pos and iaci_pos and {iff_pos, iaci_pos} == {'support', 'oppose'})
 
                     bill_positions.append({
                         'bill_number': bill_number,
@@ -603,16 +586,48 @@ async def group_watch(request: Request):
                         'divergence': divergence,
                     })
 
-            # Determine which orgs have position data
             position_orgs = sorted(set(
                 org for bp in bill_positions for org in bp['positions'].keys()
             ))
-            # Preferred order
             org_order = ['IFF', 'IACI', 'CVI', 'ICL', 'CAI', 'ACLU Idaho', 'IWF']
             position_orgs = [o for o in org_order if o in position_orgs] + \
                             [o for o in position_orgs if o not in org_order]
+    finally:
+        conn.close()
 
-            # --- Table 2: Legislator Scorecards ---
+    return templates.TemplateResponse("group_watch.html", {
+        "request": request,
+        "user": user,
+        "bill_positions": bill_positions,
+        "position_orgs": position_orgs,
+    })
+
+
+# ─── Scorecards ─────────────────────────────────────────
+@app.get("/scorecards", response_class=HTMLResponse)
+async def scorecards(request: Request):
+    """Legislator scorecards — all orgs, all legislators."""
+    user = current_user(request)
+    if not user:
+        return RedirectResponse("/auth/login", status_code=302)
+
+    from app.services.qibrain_data import get_qibrain_connection
+
+    ORG_FULL = {
+        "IACI": "Idaho Association of Commerce & Industry",
+        "IFF": "Idaho Freedom Foundation",
+        "IFBF": "Idaho Farm Bureau Federation",
+        "ACLU Idaho": "ACLU of Idaho",
+        "CPAC": "CPAC Center for Legislative Accountability",
+        "CVI": "Conservation Voters of Idaho",
+        "ICL": "Idaho Conservation League",
+        "CAI": "Citizens Alliance of Idaho",
+        "IWF": "Idaho Wildlife Federation",
+    }
+
+    conn = get_qibrain_connection()
+    try:
+        with conn.cursor() as cur:
             cur.execute("""
                 SELECT l.legislator_id, l.first_name, l.last_name, l.party,
                        l.district_id, l.chamber
@@ -622,7 +637,6 @@ async def group_watch(request: Request):
             """)
             legislators = cur.fetchall()
 
-            # Get all scores
             cur.execute("""
                 SELECT ls.legislator_id, ls.org_name, ls.vote_index, ls.year
                 FROM dispatch.legislator_scores ls
@@ -630,24 +644,19 @@ async def group_watch(request: Request):
                 WHERE l.is_active = true
                 ORDER BY ls.org_name, ls.year DESC
             """)
-            score_rows = cur.fetchall()
-
-            # Build score lookup: leg_id -> {org: {pct, year}}
             score_map = {}
-            for r in score_rows:
+            for r in cur.fetchall():
                 leg_id = r['legislator_id']
                 org = r['org_name']
                 if leg_id not in score_map:
                     score_map[leg_id] = {}
-                if org not in score_map[leg_id]:  # first = most recent year
+                if org not in score_map[leg_id]:
                     score_map[leg_id][org] = {
                         'pct': round(float(r['vote_index']), 1) if r['vote_index'] is not None else None,
                         'year': r['year'],
                     }
 
-            score_orgs = sorted(set(
-                org for sm in score_map.values() for org in sm.keys()
-            ))
+            score_orgs = sorted(set(org for sm in score_map.values() for org in sm.keys()))
             score_org_order = ['IFF', 'IACI', 'CPAC', 'IFBF', 'ACLU Idaho']
             score_orgs = [o for o in score_org_order if o in score_orgs] + \
                          [o for o in score_orgs if o not in score_org_order]
@@ -664,37 +673,21 @@ async def group_watch(request: Request):
                     'scores': scores,
                 })
 
-            # Build score legend
-            org_full = {
-                "IACI": "Idaho Association of Commerce & Industry",
-                "IFF": "Idaho Freedom Foundation",
-                "IFBF": "Idaho Farm Bureau Federation",
-                "ACLU Idaho": "ACLU of Idaho",
-                "CPAC": "CPAC Center for Legislative Accountability",
-                "CVI": "Conservation Voters of Idaho",
-                "ICL": "Idaho Conservation League",
-                "CAI": "Citizens Alliance of Idaho",
-                "IWF": "Idaho Wildlife Federation",
-            }
             score_legend_parts = []
             for org in score_orgs:
-                # Find most common year for this org
                 years = [score_map[lid][org]['year']
                          for lid in score_map if org in score_map[lid]
                          and score_map[lid][org]['year']]
                 year = max(set(years), key=years.count) if years else ''
-                full = org_full.get(org, org)
+                full = ORG_FULL.get(org, org)
                 score_legend_parts.append(f"{org} = {full} ({year})")
             score_legend = ' | '.join(score_legend_parts)
-
     finally:
         conn.close()
 
-    return templates.TemplateResponse("group_watch.html", {
+    return templates.TemplateResponse("scorecards.html", {
         "request": request,
         "user": user,
-        "bill_positions": bill_positions,
-        "position_orgs": position_orgs,
         "legislator_scores": legislator_scores,
         "score_orgs": score_orgs,
         "score_legend": score_legend,
