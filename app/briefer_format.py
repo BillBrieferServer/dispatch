@@ -1,6 +1,6 @@
 """
 briefer_format.py
-Dispatch Leadership Briefer — 7-section text assembly.
+Dispatch Leadership Platform — 7-section text assembly.
 
 Sections:
   1. Bill Summary (AI)
@@ -287,7 +287,7 @@ def _last_action_backfill(bill_obj: Dict[str, Any]) -> Tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Main formatter — 7-section Dispatch Leadership Briefer
+# Main formatter — 7-section Dispatch Leadership Platform
 # ---------------------------------------------------------------------------
 
 def format_full_briefer(

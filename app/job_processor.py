@@ -543,7 +543,7 @@ def check_stuck_jobs() -> None:
                         f"Please try your request again. If the problem persists, "
                         f"contact info@billbriefer.com and reference job ID: "
                         f"{job_id}.\n\n"
-                        f"Dispatch — Leadership Briefer\n"
+                        f"Dispatch — Leadership Platform\n"
                         f"A service of Quiet Impact"
                     )
                     send_email(email, fail_subject, fail_body)
@@ -986,7 +986,7 @@ def _process_one_job_inner() -> None:
                             f"Please try your request again. If the problem persists, "
                             f"contact info@billbriefer.com and reference job ID: "
                             f"{d.get('job_id', 'unknown')}.\n\n"
-                            f"Dispatch — Leadership Briefer\n"
+                            f"Dispatch — Leadership Platform\n"
                             f"A service of Quiet Impact"
                         )
                         send_email(fail_email, fail_subject, fail_body)

@@ -1,7 +1,7 @@
 """
 ai_brief.py
 
-Dispatch Leadership Briefer — AI orchestration.
+Dispatch Leadership Platform — AI orchestration.
 
 Sections:
   1. Bill Summary (AI)
