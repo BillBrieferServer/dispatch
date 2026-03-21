@@ -133,15 +133,15 @@
       </div>
     </div>
 
-    <p class="attribution-note">Sponsor identified from the bill's official floor sponsor designation. <a onclick="document.getElementById('attr-modal').classList.add('active')">Learn more</a></p>
+    <p class="attribution-note">Sponsor identified by cross-referencing multiple legislative sources. <a onclick="document.getElementById('attr-modal').classList.add('active')">Learn more</a></p>
 
     <div class="modal-overlay" id="attr-modal" onclick="if(event.target===this)this.classList.remove('active')">
       <div class="modal-box">
         <button class="modal-close" onclick="document.getElementById('attr-modal').classList.remove('active')">&times;</button>
         <h3>How We Identify Sponsors</h3>
-        <p>For bills that have reached a floor vote, we use the official floor sponsor listed on the legislature's bill page. This is the most authoritative source for who is carrying the bill.</p>
-        <p>For bills still in committee, we identify the sponsor from the contact name on the bill's Statement of Purpose (SOP) &mdash; a public document filed with every piece of legislation. In the small number of cases where the SOP lists a state agency contact, we show the chair of the introducing committee.</p>
-        <p>This attribution is automated and updated hourly. It reflects the most likely sponsor based on official legislative records.</p>
+        <p>We cross-reference multiple official sources to identify the most likely sponsor: the Statement of Purpose (SOP) contact, committee minutes (who presented the bill), and floor sponsor designations.</p>
+        <p>When multiple sources agree, confidence is highest. When only one source is available, we use it but with lower confidence. In the small number of cases where no legislative contact can be identified, the sponsor is shown as &ldquo;Unidentified.&rdquo;</p>
+        <p>This attribution is automated and updated daily. It reflects the most likely sponsor based on official legislative records.</p>
       </div>
     </div>
 
@@ -170,10 +170,10 @@
             data-days="{{ b.days if b.days is not none else '' }}"
             data-lastaction="{{ b.last_action_date }}">
           <td><a class="bill-link" href="https://legislature.idaho.gov/sessioninfo/2026/legislation/{{ b.bill_number }}/" target="_blank">{{ b.bill_number }}</a></td>
-          <td class="topic hide-mobile">{% if b.topic %}{{ b.topic }}{% else %}<span class="blank">-</span>{% endif %}</td>
+          <td class="topic hide-mobile">{% if b.topic %}{{ b.topic }}{% else %}<span class="blank" style="color:#999;font-style:italic">Unidentified</span>{% endif %}</td>
           <td><span class="status-pill" style="background:{{ b.status_color }}">{{ b.status_label }}</span></td>
-          <td class="committee hide-mobile" title="{{ b.committee }}">{% if b.committee %}{{ b.committee }}{% else %}<span class="blank">-</span>{% endif %}</td>
-          <td class="sponsor hide-mobile" title="{{ b.sponsor_name }}">{% if b.sponsor_name %}<a onclick="filterSponsor('{{ b.sponsor_name|e }}')">{{ b.sponsor_name }}</a>{% else %}<span class="blank">-</span>{% endif %}</td>
+          <td class="committee hide-mobile" title="{{ b.committee }}">{% if b.committee %}{{ b.committee }}{% else %}<span class="blank" style="color:#999;font-style:italic">Unidentified</span>{% endif %}</td>
+          <td class="sponsor hide-mobile" title="{{ b.sponsor_name }}">{% if b.sponsor_name %}<a onclick="filterSponsor('{{ b.sponsor_name|e }}')">{{ b.sponsor_name }}</a>{% else %}<span class="blank" style="color:#999;font-style:italic">Unidentified</span>{% endif %}</td>
           <td class="rating-val">{{ b.rating or '' }}</td>
           <td class="days-val">{% if b.days is not none %}{{ b.days }}{% else %}-{% endif %}</td>
           <td class="last-action">{{ b.last_action_fmt }}</td>
