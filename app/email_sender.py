@@ -2,7 +2,7 @@
 
 import os
 import re
-from app.tenant_config import get_tenant_config
+from app.branding import ORG_NAME
 import html
 import time
 import logging
@@ -238,7 +238,7 @@ def plain_text_to_html(s: str) -> str:
             out.append(f"<div style='font-size:9px;color:#888;margin:2px 0 0 0;font-style:italic;'>\u2020{esc(footnote_text)}</div>")
             continue
         # Org footer line - bold org name
-        _org = get_tenant_config()["org_name"]
+        _org = ORG_NAME
         if t.startswith(_org):
             flush_kv(); close_ul()
             rest = t.replace(_org, "").strip()
@@ -517,7 +517,7 @@ def wrap_email_html(inner_html: str) -> str:
   <head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
-    <title>{get_tenant_config()["org_name"]}</title>
+    <title>{ORG_NAME}</title>
   </head>
   <body style=\"margin:0;padding:0;background:#f5f7fa;\">
     <div style=\"font-family:Arial,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f7fa;padding:24px;\">

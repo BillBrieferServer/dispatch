@@ -1,15 +1,14 @@
 """
 ratings.py
 
-SQLite storage for legislator interest ratings.
-Each rating is per-tenant, per-session, per-legislator.
+SQLite storage for legislator interest ratings (per-session, per-legislator).
 """
 
 import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 DATA_DIR = Path("/app/data")
 RATINGS_DB = DATA_DIR / "ratings.sqlite"
@@ -33,6 +32,7 @@ def _conn():
 def init_ratings_db() -> None:
     """Create the ratings table if it doesn't exist."""
     with _conn() as con:
+        # Keep tenant column for backward compat with existing data (always '')
         con.execute("""
             CREATE TABLE IF NOT EXISTS legislator_ratings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,36 +48,33 @@ def init_ratings_db() -> None:
         con.execute("CREATE INDEX IF NOT EXISTS idx_ratings_session ON legislator_ratings(tenant, session_year);")
 
 
-def get_ratings(tenant: str, session_year: str) -> Dict[str, int]:
-    """
-    Get all ratings for a tenant+session.
-    Returns dict of {legislator_email: rating}.
-    """
+def get_ratings(session_year: str) -> Dict[str, int]:
+    """Get all ratings for a session. Returns {legislator_email: rating}."""
     with _conn() as con:
         cur = con.execute(
-            "SELECT legislator_email, rating FROM legislator_ratings WHERE tenant = ? AND session_year = ?",
-            (tenant, session_year)
+            "SELECT legislator_email, rating FROM legislator_ratings WHERE tenant = '' AND session_year = ?",
+            (session_year,)
         )
         return {row["legislator_email"]: row["rating"] for row in cur.fetchall()}
 
 
-def set_rating(tenant: str, session_year: str, legislator_email: str, rating: int) -> None:
+def set_rating(session_year: str, legislator_email: str, rating: int) -> None:
     """Upsert a rating (1-5) for a legislator."""
     now = time.time()
     with _conn() as con:
         con.execute("""
             INSERT INTO legislator_ratings (tenant, session_year, legislator_email, rating, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ('', ?, ?, ?, ?, ?)
             ON CONFLICT(tenant, session_year, legislator_email) DO UPDATE SET
                 rating = excluded.rating,
                 updated_at = excluded.updated_at
-        """, (tenant, session_year, legislator_email, rating, now, now))
+        """, (session_year, legislator_email, rating, now, now))
 
 
-def clear_rating(tenant: str, session_year: str, legislator_email: str) -> None:
-    """Remove a rating (set back to unrated)."""
+def clear_rating(session_year: str, legislator_email: str) -> None:
+    """Remove a rating."""
     with _conn() as con:
         con.execute(
-            "DELETE FROM legislator_ratings WHERE tenant = ? AND session_year = ? AND legislator_email = ?",
-            (tenant, session_year, legislator_email)
+            "DELETE FROM legislator_ratings WHERE tenant = '' AND session_year = ? AND legislator_email = ?",
+            (session_year, legislator_email)
         )

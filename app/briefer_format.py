@@ -18,7 +18,7 @@ import math
 import re
 from typing import Any, Dict, List, Optional, Tuple
 from app.legislators import generate_briefer_id
-from app.tenant_config import get_tenant_config
+from app.branding import HEADER_FORMAT, FOOTER_LINE, TAGLINE
 
 
 def _norm_text(x: Any) -> str:
@@ -326,7 +326,7 @@ def format_full_briefer(
 
     session_year_match = re.search(r'(\d{4})', session_label)
     session_year = session_year_match.group(1) if session_year_match else "2026"
-    parts.append(get_tenant_config()["header_format"].format(session_year=session_year))
+    parts.append(HEADER_FORMAT.format(session_year=session_year))
     parts.append("")
 
     short_label = description or title_official
@@ -576,8 +576,8 @@ def format_full_briefer(
         "Verify any details you plan to cite by reviewing official sources at "
         "legislature.idaho.gov."
     )
-    parts.append(get_tenant_config()["footer_line"])
+    parts.append(FOOTER_LINE)
     parts.append("")
-    parts.append(f"_{get_tenant_config()['tagline']}_")
+    parts.append(f"_{TAGLINE}_")
 
     return "\n".join(parts)

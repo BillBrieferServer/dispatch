@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Tuple
 
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from app.tenant_config import get_tenant_config
+from app.branding import ORG_NAME
 
 DATA_DIR = Path("/app/data")
 USAGE_LOG_PATH = DATA_DIR / "usage_log.csv"
@@ -171,7 +171,7 @@ def generate_report(start_ymd: str, end_ymd: str) -> Tuple[Path, int]:
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / f"usage_report_{start_ymd}_to_{end_ymd}.pdf"
-    title = f"{get_tenant_config()['org_name']} — Usage Report"
+    title = f"{ORG_NAME} — Usage Report"
     subtitle = f"Period: {start_ymd} to {end_ymd} (Boise time). Source: /app/data/usage_log.csv"
     _render_pdf(title, subtitle, lines, out_path)
 

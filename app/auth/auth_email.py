@@ -14,9 +14,9 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-from app.tenant_config import get_tenant_config as _get_tc
+from app.branding import ORG_NAME
 def _org():
-    return _get_tc()['org_name']
+    return ORG_NAME
 
 
 # SMTP Configuration from environment

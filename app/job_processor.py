@@ -21,7 +21,7 @@ from app.utils import (
     DEFAULT_SESSION_YEAR, SESSION_ID_MAP,
     ALERT_EMAIL, NTFY_TOPIC, JOB_TIMEOUT_MINUTES,
 )
-from app.tenant_config import get_tenant_config
+from app.branding import ORG_NAME
 from app.email_sender import send_email
 from app.ai_brief import build_ai_brief
 from app.services.qibrain_data import (
@@ -35,11 +35,7 @@ from app.briefer_format import format_full_briefer
 from app.pdf_render import render_briefer_pdf
 from app.legislators import LEGISLATORS
 
-# Census is optional
-try:
-    from app.census import get_state_snapshot
-except Exception:
-    get_state_snapshot = None
+# Census data removed — not used in dispatch stack
 
 logger = logging.getLogger(__name__)
 
@@ -200,76 +196,6 @@ def classify_bill_topic(ai_json: Optional[Dict[str, Any]], bill_obj: Dict[str, A
         return "administrative"
 
     return "other"
-
-
-def format_census_context(topic: str, state_data: Optional[Dict[str, Any]], search_text: str = "") -> Dict[str, Any]:
-    """
-    Format Census data as demographic context for AI analysis.
-    Returns: {"enabled": bool, "content": str, "source": str}
-
-    EXPANDED APPROACH: Provides Census data for most policy topics.
-    Excludes only purely procedural/administrative topics where demographics are irrelevant.
-    
-    Includes guidance for the AI to use data judiciously.
-    """
-    result = {"enabled": False, "content": "", "source": ""}
-
-    # Topics that should NOT get demographic context (purely procedural)
-    excluded_topics = ("administrative", "political", "other")
-    
-    if not state_data or topic in excluded_topics:
-        return result
-
-    pop = state_data.get("population")
-    acs_year = state_data.get("acs_year", "2023")
-
-    if not pop:
-        return result
-
-    pop_str = f"{pop:,}"
-    poverty = state_data.get("poverty_rate_pct")
-    age65 = state_data.get("age_65_plus_pct")
-    income = state_data.get("median_household_income")
-    
-    # Build comprehensive demographic snapshot
-    sections = []
-    sections.append(f"Idaho Population: {pop_str} residents")
-    
-    if income:
-        sections.append(f"Median Household Income: ${income:,}")
-    if poverty:
-        sections.append(f"Poverty Rate: {poverty:.1f}%")
-    if age65:
-        sections.append(f"Age 65+: {age65:.1f}%")
-    
-    # Add topic-specific insights
-    topic_insights = {
-        "veterans": "Approximately 9.5% of Idaho's adult civilian population are veterans (higher than national 6.5% average).",
-        "k12_education": "Over 320,000 K-12 students enrolled in Idaho public schools across 115+ districts.",
-        "healthcare_access": "Healthcare policy may disproportionately affect elderly and low-income populations.",
-        "social_services": "Social services policy directly affects low-income families and individuals statewide.",
-        "family_law": "Family law changes affect households statewide - Idaho has ~700,000 households with diverse family structures.",
-        "higher_education": "Idaho has 4 public universities and 4 community colleges serving the state population.",
-        "healthcare_admin": "Healthcare regulations affect providers and patients across Idaho's rural and urban communities.",
-        "criminal_justice": "Criminal justice policy affects incarcerated populations and their families statewide.",
-        "transportation": "Transportation infrastructure serves Idaho's population spread across 83,569 square miles.",
-        "economic": "Economic policy affects businesses and workers across Idaho's diverse economy.",
-        "property": "Property and land use policy affects homeowners and the real estate market statewide.",
-    }
-    
-    if topic in topic_insights:
-        sections.append(f"Topic Context: {topic_insights[topic]}")
-    
-    # Build the content
-    content_parts = sections
-    
-    content = chr(10).join(content_parts)
-    
-    result["enabled"] = True
-    result["content"] = content
-    result["source"] = f"US Census Bureau, American Community Survey {acs_year}"
-
-    return result
 
 
 def _job_path(job_id: str) -> Path:
@@ -735,7 +661,7 @@ def _process_one_job_inner() -> None:
 
         candidates = bill_candidates(bill_input)
         display_bill = candidates[0] if candidates else normalize_bill_number(bill_input)
-        subject = f"{get_tenant_config()['org_name']} — {display_bill}"
+        subject = f"{ORG_NAME} — {display_bill}"
 
         # Get session year from job data or default
         job_session_year = job_data.get("session_year")

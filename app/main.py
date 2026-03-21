@@ -34,7 +34,7 @@ from app.bill_status import classify_status, is_procedural_stage, normalize_comm
 
 load_dotenv()
 
-from app.tenant_config import get_tenant_config
+from app.branding import ORG_NAME, ORG_FULL_NAME
 from app.utils import (
     _estimate_cost,
     _read_json,
@@ -116,10 +116,9 @@ def _csrf_template_response(name, context, **kwargs):
     request = context.get("request")
     if request and "csrf_token" not in context:
         context["csrf_token"] = _get_csrf_token(request)
-    # Inject tenant branding into all templates
-    tc = get_tenant_config()
-    context.setdefault("org_name", tc["org_name"])
-    context.setdefault("org_full_name", tc["org_full_name"])
+    # Inject branding into all templates
+    context.setdefault("org_name", ORG_NAME)
+    context.setdefault("org_full_name", ORG_FULL_NAME)
     return _original_template_response(name, context, **kwargs)
 
 templates.TemplateResponse = _csrf_template_response
@@ -689,9 +688,8 @@ def ratings_page(request: Request):
     redir = require_login(request)
     if redir:
         return redir
-    tenant = os.getenv('TENANT_ID', '')
     session_year = DEFAULT_SESSION_YEAR
-    existing_ratings = get_ratings(tenant, session_year)
+    existing_ratings = get_ratings(session_year)
     # Build legislator list with ratings attached
     legs = []
     for email, leg in LEGISLATORS.items():
@@ -734,7 +732,6 @@ async def ratings_save(request: Request):
     if not _require_csrf(request, csrf):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "invalid csrf token"}, status_code=403)
-    tenant = os.getenv('TENANT_ID', '')
     email = body.get('email', '').strip().lower()
     session_year = body.get('session_year', DEFAULT_SESSION_YEAR)
     rating = body.get('rating')
@@ -742,13 +739,13 @@ async def ratings_save(request: Request):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "missing email"}, status_code=400)
     if rating is None:
-        clear_rating(tenant, session_year, email)
+        clear_rating(session_year, email)
     else:
         rating = int(rating)
         if rating < 1 or rating > 5:
             from fastapi.responses import JSONResponse
             return JSONResponse({"error": "rating must be 1-5"}, status_code=400)
-        set_rating(tenant, session_year, email, rating)
+        set_rating(session_year, email, rating)
     from fastapi.responses import JSONResponse
     return JSONResponse({"ok": True})
 

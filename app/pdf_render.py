@@ -22,7 +22,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.pdfgen import canvas as pdfgen_canvas
-from app.tenant_config import get_tenant_config
+from app.branding import ORG_NAME
 
 
 class NumberedCanvas(pdfgen_canvas.Canvas):
@@ -497,7 +497,7 @@ def _parse_briefer_text(body_text: str) -> List[Tuple[str, str]]:
             continue
 
         # Org footer line
-        _org = get_tenant_config()["org_name"]
+        _org = ORG_NAME
         if stripped.startswith(_org):
             segments.append(("about_footer", stripped))
             i += 1
@@ -960,7 +960,7 @@ def render_briefer_pdf(
         if seg_type == "about_footer":
             flush_kv_table()
             story.append(Spacer(1, 8))
-            _org = get_tenant_config()["org_name"]
+            _org = ORG_NAME
             rest = content.replace(_org, "").strip()
             rest_escaped = _escape_html(rest).replace("*", "&#8226;")  # Restore bullet point
             story.append(Paragraph(f"<b>{_escape_html(_org)}</b> {rest_escaped}", styles['IBB_AboutBody']))
