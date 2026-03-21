@@ -516,64 +516,57 @@ async def group_watch(request: Request):
     conn = get_qibrain_connection()
     try:
         with conn.cursor() as cur:
+            # Get ALL session bills, not just ones with positions
             cur.execute("""
-                SELECT DISTINCT ap.bill_id
+                SELECT b.bill_id, b.bill_number, b.title, b.description, b.committee,
+                       ba.attributed_name
+                FROM idaho.bills b
+                LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
+                WHERE b.legiscan_session_id = 2246
+                ORDER BY b.bill_number
+            """)
+            bills_data = cur.fetchall()
+
+            # Get all positions
+            cur.execute("""
+                SELECT ap.bill_id, ap.org_name, ap.position
                 FROM dispatch.advocacy_positions ap
                 JOIN idaho.bills b ON b.bill_id = ap.bill_id
                 WHERE b.legiscan_session_id = 2246
             """)
-            position_bill_ids = [r['bill_id'] for r in cur.fetchall()]
+            pos_map = {}
+            for r in cur.fetchall():
+                bid = r['bill_id']
+                if bid not in pos_map:
+                    pos_map[bid] = {}
+                pos_map[bid][r['org_name']] = r['position']
 
             bill_positions = []
-            if position_bill_ids:
-                placeholders = ','.join(['%s'] * len(position_bill_ids))
-                cur.execute(f"""
-                    SELECT b.bill_id, b.bill_number, b.title, b.description, b.committee,
-                           ba.attributed_name
-                    FROM idaho.bills b
-                    LEFT JOIN idaho.bill_attribution ba ON ba.bill_id = b.bill_id
-                    WHERE b.bill_id IN ({placeholders})
-                    ORDER BY b.bill_number
-                """, position_bill_ids)
-                bills_data = cur.fetchall()
+            for row in bills_data:
+                bill_id = row['bill_id']
+                bill_number = row['bill_number']
+                committee_raw = row['committee'] or ''
+                status_label, status_color = classify_status(committee_raw, bill_number=bill_number)
+                sponsor = row['attributed_name'] or ''
+                for pfx in ('Representative ', 'Senator '):
+                    if sponsor.startswith(pfx):
+                        sponsor = sponsor[len(pfx):]
+                chamber = 'House' if bill_number.startswith('H') else 'Senate'
+                positions = pos_map.get(bill_id, {})
+                iff_pos = positions.get('IFF', '')
+                iaci_pos = positions.get('IACI', '')
+                divergence = bool(iff_pos and iaci_pos and {iff_pos, iaci_pos} == {'support', 'oppose'})
 
-                cur.execute(f"""
-                    SELECT bill_id, org_name, position
-                    FROM dispatch.advocacy_positions
-                    WHERE bill_id IN ({placeholders})
-                """, position_bill_ids)
-                pos_map = {}
-                for r in cur.fetchall():
-                    bid = r['bill_id']
-                    if bid not in pos_map:
-                        pos_map[bid] = {}
-                    pos_map[bid][r['org_name']] = r['position']
-
-                for row in bills_data:
-                    bill_id = row['bill_id']
-                    bill_number = row['bill_number']
-                    committee_raw = row['committee'] or ''
-                    status_label, status_color = classify_status(committee_raw, bill_number=bill_number)
-                    sponsor = row['attributed_name'] or ''
-                    for pfx in ('Representative ', 'Senator '):
-                        if sponsor.startswith(pfx):
-                            sponsor = sponsor[len(pfx):]
-                    chamber = 'House' if bill_number.startswith('H') else 'Senate'
-                    positions = pos_map.get(bill_id, {})
-                    iff_pos = positions.get('IFF', '')
-                    iaci_pos = positions.get('IACI', '')
-                    divergence = bool(iff_pos and iaci_pos and {iff_pos, iaci_pos} == {'support', 'oppose'})
-
-                    bill_positions.append({
-                        'bill_number': bill_number,
-                        'topic': ((row['description'] or '').split(' -- ')[0] + ': ' + (row['title'] or ''))[:120] if row.get('description') and ' -- ' in (row['description'] or '') else (row['title'] or '')[:120],
-                        'chamber': chamber,
-                        'status_label': status_label,
-                        'status_color': status_color,
-                        'sponsor': sponsor,
-                        'positions': positions,
-                        'divergence': divergence,
-                    })
+                bill_positions.append({
+                    'bill_number': bill_number,
+                    'topic': ((row['description'] or '').split(' -- ')[0] + ': ' + (row['title'] or ''))[:120] if row.get('description') and ' -- ' in (row['description'] or '') else (row['title'] or '')[:120],
+                    'chamber': chamber,
+                    'status_label': status_label,
+                    'status_color': status_color,
+                    'sponsor': sponsor,
+                    'positions': positions,
+                    'divergence': divergence,
+                })
 
             position_orgs = sorted(set(
                 org for bp in bill_positions for org in bp['positions'].keys()
