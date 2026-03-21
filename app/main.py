@@ -376,11 +376,11 @@ def dashboard(request: Request):
     from app.services.qibrain_data import get_qibrain_connection
     from datetime import date
 
-    tenant = os.getenv('TENANT_ID', '')
+
     session_year = DEFAULT_SESSION_YEAR
     today = date.today()
 
-    existing_ratings = get_ratings(tenant, session_year)
+    existing_ratings = get_ratings(session_year)
 
     conn = get_qibrain_connection()
     cur = conn.cursor()
