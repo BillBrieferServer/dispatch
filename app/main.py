@@ -431,7 +431,7 @@ def dashboard(request: Request):
             topic = ''
 
         # Status classification
-        status_label, status_color = classify_status(r.get('committee'), r.get('last_action'))
+        status_label, status_color = classify_status(r.get('committee'), r.get('last_action'), r.get('bill_number'))
 
         # Days calculation
         intro = r.get('effective_intro_date') or r.get('introduced_date')
@@ -447,23 +447,22 @@ def dashboard(request: Request):
         sponsor_email = (r.get('sponsor_email') or '').lower()
         rating = existing_ratings.get(sponsor_email) if sponsor_email else None
 
-        # Committee: show actual committee name, not procedural stages or short codes
+        # Committee: originating committee (where bill was first heard)
+        # Primary: "Referred to" event from bill history
+        # Fallback: current location if still in committee, or bill_attribution
         committee = ''
-        raw_committee = r.get('committee') or ''
-        if raw_committee and not is_procedural_stage(raw_committee):
-            # Current location IS a committee — normalize it
-            committee = normalize_committee_name(raw_committee)
-        else:
-            # Bill has moved past committee — get committee from referral event
-            _evt = r.get('committee_event') or ''
-            if _evt:
-                import re as _re
-                m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
-                if m:
-                    committee = normalize_committee_name(m.group(1).strip())
-            # Third fallback: introducing committee from bill_attribution
-            if not committee and r.get('attribution_committee'):
-                committee = normalize_committee_name(r['attribution_committee'])
+        _evt = r.get('committee_event') or ''
+        if _evt:
+            import re as _re
+            m = _re.search(r'[Rr]eferred to\s+(.+?)(?:\s*Committee)?$', _evt)
+            if m:
+                committee = normalize_committee_name(m.group(1).strip())
+        if not committee:
+            raw_committee = r.get('committee') or ''
+            if raw_committee and not is_procedural_stage(raw_committee):
+                committee = normalize_committee_name(raw_committee)
+        if not committee and r.get('attribution_committee'):
+            committee = normalize_committee_name(r['attribution_committee'])
         if not committee:
             committee = 'Filed / No Committee'
 
@@ -554,7 +553,7 @@ async def group_watch(request: Request):
                     bill_id = row['bill_id']
                     bill_number = row['bill_number']
                     committee_raw = row['committee'] or ''
-                    status_label, status_color = classify_status(committee_raw)
+                    status_label, status_color = classify_status(committee_raw, bill_number=bill_number)
                     sponsor = row['attributed_name'] or ''
                     for pfx in ('Representative ', 'Senator '):
                         if sponsor.startswith(pfx):

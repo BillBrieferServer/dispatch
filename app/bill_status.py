@@ -1,28 +1,33 @@
 """
 bill_status.py
 
-Status mapping for bill dashboard display.
-Derives status from bills.committee (the bill's current location in the process).
+Status and committee resolution for bill dashboard display.
+
+Committee: derived from first "Referred to" event (originating committee).
+Status: derived from bills.committee (current location) with cross-chamber awareness.
 """
 
 # (label, background_color)
 STATUS_GROUPS = {
-    "introduced":       ("Introduced",       "#4A90D9"),
-    "in_committee":     ("In Committee",     "#E8A020"),
-    "committee_action": ("Amending Order",   "#E07020"),
-    "second_reading":   ("2nd Reading",      "#5B9BD5"),
-    "floor_vote":       ("Floor Vote",       "#6B8ED6"),
-    "passed_chamber":   ("Passed Chamber",   "#2E8B2E"),
-    "second_chamber":   ("Second Chamber",   "#7B52AB"),
-    "with_governor":    ("With Governor",    "#D4A017"),
-    "signed_law":       ("Signed into Law",  "#1A5C1A"),
-    "held_failed":      ("Held / Failed",    "#CC3333"),
-    "vetoed":           ("Vetoed",           "#8B1A1A"),
+    "introduced":         ("Introduced",         "#4A90D9"),
+    "in_committee":       ("In Committee",       "#E8A020"),
+    "amending_order":     ("Amending Order",     "#E07020"),
+    "second_reading":     ("2nd Reading",        "#5B9BD5"),
+    "floor_vote":         ("Floor Vote",         "#6B8ED6"),
+    "passed_chamber":     ("Passed Chamber",     "#2E8B2E"),
+    "crossed_to_senate":  ("Crossed to Senate",  "#7B52AB"),
+    "crossed_to_house":   ("Crossed to House",   "#7B52AB"),
+    "senate_committee":   ("Senate Committee",   "#9B6FC0"),
+    "house_committee":    ("House Committee",    "#9B6FC0"),
+    "senate_floor":       ("Senate Floor",       "#8B6ED6"),
+    "house_floor":        ("House Floor",        "#8B6ED6"),
+    "with_governor":      ("With Governor",      "#D4A017"),
+    "signed_law":         ("Signed into Law",    "#1A5C1A"),
+    "held_failed":        ("Held / Failed",      "#CC3333"),
+    "vetoed":             ("Vetoed",             "#8B1A1A"),
 }
 
 # Procedural stage patterns found in bills.committee field
-# These indicate the bill has moved beyond a committee
-# Order matters — first match wins
 _STAGE_PATTERNS = [
     # Terminal
     ("LAW",         "signed_law"),
@@ -44,21 +49,20 @@ _STAGE_PATTERNS = [
     ("3rd Rdg",     "floor_vote"),
     ("Gen Ord",     "floor_vote"),
     ("2nd Rdg",     "second_reading"),
-    ("14th Ord",    "committee_action"),
-    ("10th Ord",    "committee_action"),
+    ("14th Ord",    "amending_order"),
+    ("10th Ord",    "amending_order"),
     # Pre-floor
     ("printing",    "introduced"),
 ]
 
 
-def classify_status(committee_location, last_action=None):
+def classify_status(committee_location, last_action=None, bill_number=None):
     """
-    Classify a bill\'s status from its committee field (current location).
-    Falls back to last_action text if committee is empty.
+    Classify a bill's status from its committee field (current location).
+    Uses bill_number to determine originating chamber for cross-chamber labels.
     Returns (label, color) tuple.
     """
     if not committee_location:
-        # No location info — check last_action as fallback
         if last_action:
             text = last_action.lower()
             if "signed by governor" in text or "became law" in text:
@@ -71,12 +75,32 @@ def classify_status(committee_location, last_action=None):
 
     loc = committee_location.strip()
 
-    # Check procedural stage patterns
+    # Determine originating chamber from bill number
+    origin_chamber = None
+    if bill_number:
+        origin_chamber = 'H' if bill_number.startswith('H') else 'S'
+
+    # Check procedural stage patterns first
     for pattern, group_key in _STAGE_PATTERNS:
         if pattern in loc:
+            # For floor/committee stages, add cross-chamber awareness
+            if origin_chamber and group_key in ('in_committee', 'floor_vote', 'second_reading', 'amending_order'):
+                loc_chamber = 'H' if loc.startswith('H ') or loc.startswith('H') else 'S' if loc.startswith('S ') or loc.startswith('S') else None
+                if loc_chamber and loc_chamber != origin_chamber:
+                    # Bill is in the OTHER chamber
+                    if group_key == 'floor_vote' or group_key == 'second_reading':
+                        return STATUS_GROUPS[f"{'senate' if loc_chamber == 'S' else 'house'}_floor"]
+                    elif group_key == 'amending_order':
+                        return STATUS_GROUPS[f"{'senate' if loc_chamber == 'S' else 'house'}_floor"]
             return STATUS_GROUPS[group_key]
 
-    # If it\'s a committee name (short code or full name), bill is in committee
+    # Not a procedural stage — it's a committee name
+    # Check if bill is in the other chamber's committee
+    if origin_chamber:
+        loc_chamber = 'H' if loc.startswith('H ') else 'S' if loc.startswith('S ') else None
+        if loc_chamber and loc_chamber != origin_chamber:
+            return STATUS_GROUPS[f"{'senate' if loc_chamber == 'S' else 'house'}_committee"]
+
     return STATUS_GROUPS["in_committee"]
 
 
@@ -92,9 +116,7 @@ def is_procedural_stage(committee_location):
 
 
 # Short code -> full committee name
-# Used by dashboard to display clean committee names
 _COMMITTEE_NAMES = {
-    # House
     'H Agric Aff':   'Agricultural Affairs',
     'H Approp':      'Appropriations',
     'H Bus':         'Business',
@@ -109,7 +131,7 @@ _COMMITTEE_NAMES = {
     'H St Aff':      'State Affairs',
     'H Transp':      'Transportation & Defense',
     'H Way/Means':   'Ways & Means',
-    # Senate
+    'H W/M':         'Ways & Means',
     'S Agric Aff':   'Agricultural Affairs',
     'S Com/HuRes':   'Commerce & Human Resources',
     'S Educ':        'Education',
@@ -122,7 +144,6 @@ _COMMITTEE_NAMES = {
     'S Transp':      'Transportation',
 }
 
-# Also normalize full names that have inconsistent formatting
 _FULL_NAME_CLEANUP = {
     'Health And Welfare Committee': 'Health & Welfare',
     'Judiciary And Rules Committee': 'Judiciary & Rules',
@@ -139,7 +160,6 @@ _FULL_NAME_CLEANUP = {
     'Local Government and Taxation': 'Local Government & Taxation',
 }
 
-# Referral event text patterns -> clean names
 _REFERRAL_CLEANUP = {
     'Agricultural Affairs': 'Agricultural Affairs',
     'Appropriations': 'Appropriations',
@@ -179,16 +199,12 @@ def normalize_committee_name(raw_name):
     if not raw_name:
         return ''
     name = raw_name.strip()
-    # Try short code first
     if name in _COMMITTEE_NAMES:
         return _COMMITTEE_NAMES[name]
-    # Try full name cleanup
     if name in _FULL_NAME_CLEANUP:
         return _FULL_NAME_CLEANUP[name]
-    # Try referral cleanup
     if name in _REFERRAL_CLEANUP:
         return _REFERRAL_CLEANUP[name]
-    # Strip trailing "Committee" if present
     if name.endswith(' Committee'):
         name = name[:-10].strip()
     return name
