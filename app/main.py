@@ -399,7 +399,7 @@ def dashboard(request: Request):
     conn = get_qibrain_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT b.bill_id, b.bill_number, b.title, b.subjects,
+        SELECT b.bill_id, b.bill_number, b.title, b.description, b.subjects,
                b.introduced_date, b.last_action_date, b.last_action,
                b.committee,
                ba.attributed_name AS sponsor_name,
@@ -429,24 +429,15 @@ def dashboard(request: Request):
 
     bills = []
     for r in rows:
-        # Topic: first element of subjects JSONB array, fallback to title prefix
-        subj = r['subjects']
-        if isinstance(subj, list) and subj:
-            topic = str(subj[0]).upper()
-        elif isinstance(subj, str):
-            import json as _json
-            try:
-                parsed = _json.loads(subj)
-                topic = str(parsed[0]).upper() if parsed else ''
-            except Exception:
-                topic = subj.upper() if subj else ''
+        # Topic: description prefix + title (matches group-watch format)
+        _desc = r.get('description') or ''
+        _title = r.get('title') or ''
+        if _desc and ' -- ' in _desc:
+            topic = (_desc.split(' -- ')[0] + ': ' + _title)[:120]
+        elif _title:
+            topic = _title[:120]
         else:
             topic = ''
-        if not topic:
-            import re as _re2
-            _tm = _re2.match(r'^([A-Z][A-Z\s,/&\-\(\)]+?)(?:\s+(?:Adds?|Amends?|Relates?|Provides?|Repeals?|Establishes?|Revises?|Appropriat|States|A JOINT|AN ACT)[\s,]|\s+[-–]\s)', r['title'] or '')
-            if _tm:
-                topic = _tm.group(1).strip().rstrip(' -')
 
         # Status classification
         status_label, status_color = classify_status(r.get('committee'), r.get('last_action'))
