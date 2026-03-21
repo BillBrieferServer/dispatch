@@ -101,6 +101,7 @@
     // Apply default filter on load
     applyFilters();
 
+    var csrfToken = "{{ csrf_token }}";
     function setRating(btn, email, val) {
       var group = btn.parentNode;
       var isActive = btn.classList.contains('active');
@@ -114,7 +115,7 @@
         fetch('/ratings/save', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: null})
+          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: null, csrf_token: csrfToken})
         });
       } else {
         // Set rating
@@ -124,7 +125,7 @@
         fetch('/ratings/save', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: val})
+          body: JSON.stringify({email: email, session_year: '{{ session_year }}', rating: val, csrf_token: csrfToken})
         });
       }
       // Re-apply filter in case show only unrated is checked

@@ -89,10 +89,10 @@ class CSRFSessionMiddleware(BaseHTTPMiddleware):
         # Set csrf_session cookie if one was generated during this request
         new_csrf = getattr(request.state, "new_csrf_session", None)
         if new_csrf:
-            response.set_cookie("csrf_session", new_csrf, max_age=3600, httponly=True, samesite="lax")
+            response.set_cookie("csrf_session", new_csrf, max_age=3600, httponly=True, secure=True, samesite="lax")
         elif not request.cookies.get("bb_session") and not request.cookies.get("csrf_session"):
             csrf_session = secrets.token_hex(32)
-            response.set_cookie("csrf_session", csrf_session, max_age=3600, httponly=True, samesite="lax")
+            response.set_cookie("csrf_session", csrf_session, max_age=3600, httponly=True, secure=True, samesite="lax")
         return response
 
 app.add_middleware(CSRFSessionMiddleware)
@@ -286,6 +286,7 @@ try:
     scheduler.add_job(cleanup_old_jobs, "interval", hours=6, id="job_cleanup", replace_existing=True, max_instances=1)
     scheduler.add_job(check_stuck_jobs, "interval", minutes=1, id="stuck_job_watchdog", replace_existing=True, max_instances=1)
     scheduler.add_job(auth_cleanup_jobs, "interval", hours=6, id="auth_cleanup", replace_existing=True, max_instances=1)
+    scheduler.add_job(_cleanup_csrf_tokens, "interval", hours=1, id="csrf_cleanup", replace_existing=True, max_instances=1)
     if not scheduler.running:
         scheduler.start()
         print("SCHEDULER_STARTED_V1")
@@ -729,6 +730,10 @@ async def ratings_save(request: Request):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     body = await request.json()
+    csrf = body.get("csrf_token", "")
+    if not _require_csrf(request, csrf):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "invalid csrf token"}, status_code=403)
     tenant = os.getenv('TENANT_ID', '')
     email = body.get('email', '').strip().lower()
     session_year = body.get('session_year', DEFAULT_SESSION_YEAR)

@@ -175,6 +175,7 @@ a{color:#60a5fa;text-decoration:none}
           if(j.status==='failed'||j.status==='stuck'){
             html+='<div class="job-actions"><form method="post" action="/admin/ops/retry-job" style="display:inline">';
             html+='<input type="hidden" name="job_id" value="'+escHtml(j.job_id)+'">';
+            html+='<input type="hidden" name="csrf_token" value="'+csrfToken+'">';
             html+='<button type="submit" class="btn btn-sm btn-red">Retry</button></form></div>';
           }
           html+='</div>';

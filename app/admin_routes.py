@@ -143,10 +143,12 @@ def admin_reports_page(request: Request):
 
 
 @router.post("/admin/reports/generate")
-def admin_reports_generate(request: Request, start: str = Form(...), end: str = Form(...)):
+def admin_reports_generate(request: Request, start: str = Form(...), end: str = Form(...), csrf_token: str = Form("")):
     redir = _require_admin(request)
     if redir:
         return redir
+    if not _validate_csrf(request, csrf_token):
+        return RedirectResponse(url="/admin/reports", status_code=302)
     out_path, _total = generate_report(start, end)
     return FileResponse(path=str(out_path), media_type="application/pdf", filename=Path(out_path).name)
 
@@ -231,10 +233,12 @@ def admin_users_page(request: Request):
 
 
 @router.post("/admin/users", response_class=HTMLResponse)
-def admin_users_save(request: Request, emails: List[str] = Form(default=[]), manual_names: List[str] = Form(default=[])):
+def admin_users_save(request: Request, emails: List[str] = Form(default=[]), manual_names: List[str] = Form(default=[]), csrf_token: str = Form("")):
     redir = _require_admin(request)
     if redir:
         return redir
+    if not _validate_csrf(request, csrf_token):
+        return RedirectResponse(url="/admin/users", status_code=302)
 
     # Normalize emails
     allow_set = set()
@@ -320,6 +324,9 @@ async def admin_chamber_toggle(request: Request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
     form = await request.form()
+    csrf_token = form.get("csrf_token", "")
+    if not _validate_csrf(request, csrf_token):
+        return JSONResponse({"error": "invalid csrf token"}, status_code=403)
     email = (form.get("email") or "").strip().lower()
     field = form.get("field", "")
     value = int(form.get("value", "1"))
@@ -331,22 +338,30 @@ async def admin_chamber_toggle(request: Request):
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        # Try updating registered user first
-        cursor.execute(f"UPDATE users SET {field} = ? WHERE email = ?", (value, email))
+        # Try updating registered user first (explicit queries, no f-string interpolation)
+        if field == "can_view_house":
+            cursor.execute("UPDATE users SET can_view_house = ? WHERE email = ?", (value, email))
+        else:
+            cursor.execute("UPDATE users SET can_view_senate = ? WHERE email = ?", (value, email))
         conn.commit()
         if cursor.rowcount > 0:
             return JSONResponse({"ok": True, "updated": 1})
         # No registered account — store in chamber_prefs for when they register
         cursor.execute("SELECT email FROM chamber_prefs WHERE email = ?", (email,))
         if cursor.fetchone():
-            cursor.execute(f"UPDATE chamber_prefs SET {field} = ? WHERE email = ?", (value, email))
+            if field == "can_view_house":
+                cursor.execute("UPDATE chamber_prefs SET can_view_house = ? WHERE email = ?", (value, email))
+            else:
+                cursor.execute("UPDATE chamber_prefs SET can_view_senate = ? WHERE email = ?", (value, email))
         else:
-            # Insert with defaults, then set the field
             h_default = 0 if email.endswith('@senate.idaho.gov') else 1
             s_default = 0 if email.endswith('@house.idaho.gov') else 1
             cursor.execute("INSERT INTO chamber_prefs (email, can_view_house, can_view_senate) VALUES (?, ?, ?)",
                            (email, h_default, s_default))
-            cursor.execute(f"UPDATE chamber_prefs SET {field} = ? WHERE email = ?", (value, email))
+            if field == "can_view_house":
+                cursor.execute("UPDATE chamber_prefs SET can_view_house = ? WHERE email = ?", (value, email))
+            else:
+                cursor.execute("UPDATE chamber_prefs SET can_view_senate = ? WHERE email = ?", (value, email))
         conn.commit()
 
     return JSONResponse({"ok": True, "updated": 1})
@@ -676,10 +691,12 @@ def admin_admins_page(request: Request, message: str = "", message_type: str = "
     )
 
 @router.post("/admin/admins/add")
-def admin_admins_add(request: Request, email: str = Form(...)):
+def admin_admins_add(request: Request, email: str = Form(...), csrf_token: str = Form("")):
     redir = _require_admin(request)
     if redir:
         return redir
+    if not _validate_csrf(request, csrf_token):
+        return RedirectResponse(url="/admin/admins?message=Invalid+session&message_type=error", status_code=302)
     email_clean = email.strip().lower()
     if not email_clean or "@" not in email_clean:
         return RedirectResponse(url="/admin/admins?message=Invalid email&message_type=error", status_code=302)
@@ -691,10 +708,12 @@ def admin_admins_add(request: Request, email: str = Form(...)):
     return RedirectResponse(url="/admin/admins?message=Admin added successfully&message_type=success", status_code=302)
 
 @router.post("/admin/admins/remove")
-def admin_admins_remove(request: Request, email: str = Form(...)):
+def admin_admins_remove(request: Request, email: str = Form(...), csrf_token: str = Form("")):
     redir = _require_admin(request)
     if redir:
         return redir
+    if not _validate_csrf(request, csrf_token):
+        return RedirectResponse(url="/admin/admins?message=Invalid+session&message_type=error", status_code=302)
     email_clean = email.strip().lower()
     admins = _load_admin_allowlist()
     if email_clean not in admins:
@@ -851,10 +870,12 @@ def admin_ops_page(request: Request):
 
 
 @router.post("/admin/ops/retry-job")
-def admin_ops_retry_job(request: Request, job_id: str = Form(...)):
+def admin_ops_retry_job(request: Request, job_id: str = Form(...), csrf_token: str = Form("")):
     redir = _require_admin(request)
     if redir:
         return redir
+    if not _validate_csrf(request, csrf_token):
+        return RedirectResponse(url="/admin/ops", status_code=302)
     _ops_retry_job(job_id)
     return RedirectResponse(url="/admin/ops", status_code=302)
 

@@ -459,7 +459,7 @@ async def register_submit(
     # Store email in session for verification page
     # Using a simple approach - store in response cookies temporarily
     response = RedirectResponse(url="/auth/register/verify", status_code=302)
-    response.set_cookie("pending_email", email, max_age=900, httponly=True)  # 15 min
+    response.set_cookie("pending_email", email, max_age=900, httponly=True, secure=True, samesite="lax")  # 15 min
 
     return response
 
@@ -537,7 +537,7 @@ async def register_verify_submit(
 
     # Redirect to password creation
     response = RedirectResponse(url="/auth/register/password", status_code=302)
-    response.set_cookie("verified_email", email, max_age=900, httponly=True)  # 15 min
+    response.set_cookie("verified_email", email, max_age=900, httponly=True, secure=True, samesite="lax")  # 15 min
     response.delete_cookie("pending_email")
 
     return response
@@ -865,7 +865,7 @@ async def login_submit(
     # No valid session and not trusted device - proceed to MFA
     # Store pending login info
     response = RedirectResponse(url="/auth/login/verify", status_code=302)
-    response.set_cookie("pending_login_email", email, max_age=600, httponly=True)  # 10 min
+    response.set_cookie("pending_login_email", email, max_age=600, httponly=True, secure=True, samesite="lax")  # 10 min
 
     # Generate and send MFA code
     plain_code, hashed_code, expires_at = generate_mfa_code(expiry_minutes=10)
@@ -1087,7 +1087,7 @@ async def reset_password_submit(
 
     # Redirect to verification page
     response = RedirectResponse(url="/auth/reset-password/verify", status_code=302)
-    response.set_cookie("reset_email", email, max_age=600, httponly=True)
+    response.set_cookie("reset_email", email, max_age=600, httponly=True, secure=True, samesite="lax")
     return response
 
 
@@ -1164,7 +1164,7 @@ async def reset_password_verify_submit(
 
     # Redirect to new password page
     response = RedirectResponse(url="/auth/reset-password/new", status_code=302)
-    response.set_cookie("verified_reset_email", email, max_age=600, httponly=True)
+    response.set_cookie("verified_reset_email", email, max_age=600, httponly=True, secure=True, samesite="lax")
     response.delete_cookie("reset_email")
     return response
 

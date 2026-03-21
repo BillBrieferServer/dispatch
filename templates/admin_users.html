@@ -152,6 +152,7 @@ function addManualUser(){
 }
 updateCounts();
 
+var csrfToken = "{{ csrf_token }}";
 function toggleChamber(cb) {
   var email = cb.getAttribute('data-email');
   var field = cb.getAttribute('data-field');
@@ -162,6 +163,7 @@ function toggleChamber(cb) {
   fd.append('email', email);
   fd.append('field', field);
   fd.append('value', value);
+  fd.append('csrf_token', csrfToken);
   fetch('/admin/users/chamber-toggle', { method: 'POST', body: fd })
     .then(function(r) { return r.json(); })
     .then(function(d) {
