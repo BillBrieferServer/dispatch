@@ -212,6 +212,8 @@ def current_user(request: Request) -> Optional[Dict[str, Any]]:
                         "name": session.get("name"),
                         "district": session.get("district"),
                         "chamber": session.get("chamber"),
+                        "can_view_house": session.get("can_view_house", 1),
+                        "can_view_senate": session.get("can_view_senate", 1),
                         "auth_type": "password"
                     }
                     # Check allowlist — user must be currently authorized
@@ -506,10 +508,20 @@ def dashboard(request: Request):
             'last_action_date': str(lad) if lad else '',
         })
 
+    # Server-side chamber filtering based on user access
+    _cvh = user.get("can_view_house", 1)
+    _cvs = user.get("can_view_senate", 1)
+    if not (_cvh and _cvs):
+        bills = [b for b in bills if
+                 (_cvh and b['chamber'] == 'House') or
+                 (_cvs and b['chamber'] == 'Senate')]
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "bills": bills,
         "session_year": session_year,
+        "can_view_house": _cvh,
+        "can_view_senate": _cvs,
     })
 
 
@@ -598,8 +610,10 @@ async def group_watch(request: Request):
     return templates.TemplateResponse("group_watch.html", {
         "request": request,
         "user": user,
-        "bill_positions": bill_positions,
+        "bill_positions": bill_positions if (user.get("can_view_house", 1) and user.get("can_view_senate", 1)) else [bp for bp in bill_positions if (user.get("can_view_house", 1) and bp['chamber'] == 'House') or (user.get("can_view_senate", 1) and bp['chamber'] == 'Senate')],
         "position_orgs": position_orgs,
+        "can_view_house": user.get("can_view_house", 1),
+        "can_view_senate": user.get("can_view_senate", 1),
     })
 
 
@@ -685,12 +699,22 @@ async def scorecards(request: Request):
     finally:
         conn.close()
 
+    # Server-side chamber filtering
+    _cvh = user.get("can_view_house", 1)
+    _cvs = user.get("can_view_senate", 1)
+    if not (_cvh and _cvs):
+        legislator_scores = [ls for ls in legislator_scores if
+                             (_cvh and ls['chamber'] == 'House') or
+                             (_cvs and ls['chamber'] == 'Senate')]
+
     return templates.TemplateResponse("scorecards.html", {
         "request": request,
         "user": user,
         "legislator_scores": legislator_scores,
         "score_orgs": score_orgs,
         "score_legend": score_legend,
+        "can_view_house": _cvh,
+        "can_view_senate": _cvs,
     })
 
 
@@ -716,10 +740,21 @@ def ratings_page(request: Request):
             'rating': existing_ratings.get(email),
         })
     legs.sort(key=lambda x: (x['chamber'], x['last_name'], x['first_name']))
+    # Server-side chamber filtering
+    _user = current_user(request)
+    _cvh = _user.get("can_view_house", 1) if _user else 1
+    _cvs = _user.get("can_view_senate", 1) if _user else 1
+    if not (_cvh and _cvs):
+        legs = [l for l in legs if
+                (_cvh and l['chamber'] == 'House') or
+                (_cvs and l['chamber'] == 'Senate')]
+
     return templates.TemplateResponse("ratings.html", {
         "request": request,
         "legislators": legs,
         "session_year": session_year,
+        "can_view_house": _cvh,
+        "can_view_senate": _cvs,
     })
 
 @app.post("/ratings/save")

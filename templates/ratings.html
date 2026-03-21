@@ -41,8 +41,8 @@
 
     <div class="filter-bar">
       <div>
-        <label for="chamber-filter">Chamber:</label>
-        <select id="chamber-filter" onchange="applyFilters()">
+        <label for="chamber-filter" {% if not (can_view_house and can_view_senate) %}style="display:none"{% endif %}>Chamber:</label>
+        <select id="chamber-filter" onchange="applyFilters()" {% if not (can_view_house and can_view_senate) %}style="display:none"{% endif %}>
           <option value="House">House</option>
           <option value="Senate">Senate</option>
           <option value="Both">Both</option>

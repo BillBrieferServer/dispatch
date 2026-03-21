@@ -600,6 +600,15 @@ async def register_password_submit(
     # Hash password
     password_hash = hash_password(password)
 
+    # Determine chamber access based on email domain
+    _email_lower = email.lower()
+    if _email_lower.endswith('@senate.idaho.gov'):
+        _can_view_house, _can_view_senate = 0, 1
+    elif _email_lower.endswith('@house.idaho.gov'):
+        _can_view_house, _can_view_senate = 1, 0
+    else:
+        _can_view_house, _can_view_senate = 1, 1
+
     # Create user
     user_id = create_user(
         email=email,
@@ -608,7 +617,9 @@ async def register_password_submit(
         district=legislator_info.get('district'),
         chamber=legislator_info.get('chamber'),
         party=legislator_info.get('party'),
-        email_verified=True
+        email_verified=True,
+        can_view_house=_can_view_house,
+        can_view_senate=_can_view_senate,
     )
 
     if not user_id:

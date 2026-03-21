@@ -24,6 +24,7 @@ from app.utils import (
 )
 from app.usage_report import generate_report
 from app.legislators import LEGISLATORS
+from app.auth.auth_db import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,25 @@ def _set_allowlist(new_val):
     import app.main as main_mod
     main_mod.ALLOWLIST = new_val
 
+
+
+
+def _get_chamber_access(email: str, default_title: str = '') -> dict:
+    """Look up chamber access flags for a user from auth DB."""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT can_view_house, can_view_senate FROM users WHERE email = ?", (email.lower(),))
+        row = cur.fetchone()
+        if row:
+            return {"can_view_house": row[0], "can_view_senate": row[1], "has_account": True}
+    # No account yet — default based on title/email
+    is_senator = 'senator' in default_title.lower() or email.lower().endswith('@senate.idaho.gov')
+    is_rep = 'representative' in default_title.lower() or email.lower().endswith('@house.idaho.gov')
+    if is_senator:
+        return {"can_view_house": 0, "can_view_senate": 1, "has_account": False}
+    elif is_rep:
+        return {"can_view_house": 1, "can_view_senate": 0, "has_account": False}
+    return {"can_view_house": 1, "can_view_senate": 1, "has_account": False}
 
 @router.get("/not-authorized", response_class=HTMLResponse)
 def not_authorized_page(request: Request):
@@ -159,11 +179,15 @@ def admin_users_page(request: Request):
     representatives = []
     
     for email, leg in sorted(LEGISLATORS.items(), key=lambda x: x[1]['last_name']):
+        ca = _get_chamber_access(email, leg.get('title', ''))
         leg_data = {
             'email': leg['email'],
             'display_name': leg['display_name'],
             'district': leg['district'],
-            'authorized': email in allow
+            'authorized': email in allow,
+            'can_view_house': ca['can_view_house'],
+            'can_view_senate': ca['can_view_senate'],
+            'has_account': ca['has_account'],
         }
         if 'senator' in leg['title'].lower():
             senators.append(leg_data)
@@ -179,8 +203,14 @@ def admin_users_page(request: Request):
             mu = manual_names_dict.get(email, {})
             mu_name = mu.get("name") if isinstance(mu, dict) else mu
             mu_dist = mu.get("district") if isinstance(mu, dict) else None
-            manual_users.append({'email': email, 'name': mu_name, 'district': mu_dist})
-    
+            ca = _get_chamber_access(email)
+            manual_users.append({
+                'email': email, 'name': mu_name, 'district': mu_dist,
+                'can_view_house': ca['can_view_house'],
+                'can_view_senate': ca['can_view_senate'],
+                'has_account': ca['has_account'],
+            })
+
     return _get_templates().TemplateResponse(
         "admin_users.html",
         {
@@ -231,11 +261,15 @@ def admin_users_save(request: Request, emails: List[str] = Form(default=[]), man
     representatives = []
     
     for email, leg in sorted(LEGISLATORS.items(), key=lambda x: x[1]['last_name']):
+        ca = _get_chamber_access(email, leg.get('title', ''))
         leg_data = {
             'email': leg['email'],
             'display_name': leg['display_name'],
             'district': leg['district'],
-            'authorized': email.lower() in allow_set
+            'authorized': email.lower() in allow_set,
+            'can_view_house': ca['can_view_house'],
+            'can_view_senate': ca['can_view_senate'],
+            'has_account': ca['has_account'],
         }
         if 'senator' in leg['title'].lower():
             senators.append(leg_data)
@@ -251,8 +285,14 @@ def admin_users_save(request: Request, emails: List[str] = Form(default=[]), man
             mu = manual_names_dict.get(email, {})
             mu_name = mu.get("name") if isinstance(mu, dict) else mu
             mu_dist = mu.get("district") if isinstance(mu, dict) else None
-            manual_users.append({'email': email, 'name': mu_name, 'district': mu_dist})
-    
+            ca = _get_chamber_access(email)
+            manual_users.append({
+                'email': email, 'name': mu_name, 'district': mu_dist,
+                'can_view_house': ca['can_view_house'],
+                'can_view_senate': ca['can_view_senate'],
+                'has_account': ca['has_account'],
+            })
+
     return _get_templates().TemplateResponse(
         "admin_users.html",
         {
@@ -264,6 +304,33 @@ def admin_users_save(request: Request, emails: List[str] = Form(default=[]), man
             "error": None
         },
     )
+
+
+@router.post("/admin/users/chamber-toggle")
+async def admin_chamber_toggle(request: Request):
+    """Toggle chamber access for a user via AJAX."""
+    redir = _require_admin(request)
+    if redir:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    form = await request.form()
+    email = (form.get("email") or "").strip().lower()
+    field = form.get("field", "")
+    value = int(form.get("value", "1"))
+
+    if field not in ("can_view_house", "can_view_senate"):
+        return JSONResponse({"error": "invalid field"}, status_code=400)
+    if not email:
+        return JSONResponse({"error": "no email"}, status_code=400)
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"UPDATE users SET {field} = ? WHERE email = ?", (value, email))
+        conn.commit()
+        updated = cursor.rowcount
+
+    return JSONResponse({"ok": True, "updated": updated})
+
 # ── Admin Demo Briefer Generator ──
 
 

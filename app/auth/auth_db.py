@@ -53,7 +53,11 @@ def init_auth_db():
                 -- Timestamps
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP,
-                password_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                password_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                -- Chamber access control
+                can_view_house INTEGER DEFAULT 1,
+                can_view_senate INTEGER DEFAULT 1
             )
         """)
 
@@ -196,16 +200,18 @@ def create_user(
     district: Optional[str] = None,
     chamber: Optional[str] = None,
     party: Optional[str] = None,
-    email_verified: bool = True
+    email_verified: bool = True,
+    can_view_house: int = 1,
+    can_view_senate: int = 1,
 ) -> Optional[int]:
     """Create a new user and return user_id."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                INSERT INTO users (email, password_hash, name, district, chamber, party, email_verified)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (email.lower(), password_hash, name, district, chamber, party, 1 if email_verified else 0))
+                INSERT INTO users (email, password_hash, name, district, chamber, party, email_verified, can_view_house, can_view_senate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (email.lower(), password_hash, name, district, chamber, party, 1 if email_verified else 0, can_view_house, can_view_senate))
             conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
@@ -430,7 +436,7 @@ def get_session_by_token_hash(token_hash: str) -> Optional[Dict[str, Any]]:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT st.*, u.email, u.name, u.district, u.chamber, u.account_status
+            SELECT st.*, u.email, u.name, u.district, u.chamber, u.account_status, u.can_view_house, u.can_view_senate
             FROM session_tokens st
             JOIN users u ON st.user_id = u.id
             WHERE st.token_hash = ?

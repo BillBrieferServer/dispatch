@@ -18,6 +18,11 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 .legislator-name { font-weight: 500; }
 .legislator-email { font-size: 0.85em; color: #666; }
 .authorized { background: #e8f5e9; border-color: #c8e6c9; }
+.chamber-toggles { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+.chamber-toggles label { font-size: 0.75em; display: flex; align-items: center; gap: 2px; color: #555; cursor: pointer; padding: 2px 6px; border-radius: 4px; background: #eee; }
+.chamber-toggles label.active { background: #c8e6c9; color: #2e7d32; font-weight: 600; }
+.chamber-toggles input[type="checkbox"] { width: 14px; height: 14px; }
+.no-account { opacity: 0.5; font-size: 0.7em; color: #999; }
 .message { padding: 10px 12px; border-radius: 10px; background: #e8f5e9; margin: 14px 0; }
 .error { padding: 10px 12px; border-radius: 10px; background: #ffecec; color: #7a0000; margin: 14px 0; }
 .actions { margin-top: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -57,6 +62,11 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 <div class="legislator-item {% if leg.authorized %}authorized{% endif %}">
 <input type="checkbox" name="emails" value="{{ leg.email }}" id="leg-{{ loop.index }}" class="leg-checkbox senator" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
 <label for="leg-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
+<div class="chamber-toggles">
+<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>H</label>
+<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>S</label>
+{% if not leg.has_account %}<span class="no-account">(no acct)</span>{% endif %}
+</div>
 </div>
 {% endfor %}
 </div></div>
@@ -71,6 +81,11 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 <div class="legislator-item {% if leg.authorized %}authorized{% endif %}">
 <input type="checkbox" name="emails" value="{{ leg.email }}" id="rep-{{ loop.index }}" class="leg-checkbox representative" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
 <label for="rep-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
+<div class="chamber-toggles">
+<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>H</label>
+<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>S</label>
+{% if not leg.has_account %}<span class="no-account">(no acct)</span>{% endif %}
+</div>
 </div>
 {% endfor %}
 </div></div>
@@ -88,6 +103,11 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 {% else %}
 <span class="no-district">No district</span>
 {% endif %}
+<div class="chamber-toggles">
+<label class="{% if user.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_house" {% if user.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not user.has_account %}disabled{% endif %}>H</label>
+<label class="{% if user.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_senate" {% if user.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not user.has_account %}disabled{% endif %}>S</label>
+{% if not user.has_account %}<span class="no-account">(no acct)</span>{% endif %}
+</div>
 <span class="email">{{ user.email }}</span>
 <button type="button" class="delete-btn" onclick="deleteManualUser(this)" title="Remove user">&times;</button>
 </div>
@@ -131,6 +151,24 @@ function addManualUser(){
   n.value='';e.value='';ds.value='';updateCounts();
 }
 updateCounts();
+
+function toggleChamber(cb) {
+  var email = cb.getAttribute('data-email');
+  var field = cb.getAttribute('data-field');
+  var value = cb.checked ? 1 : 0;
+  var label = cb.parentElement;
+  if (cb.checked) { label.classList.add('active'); } else { label.classList.remove('active'); }
+  var fd = new FormData();
+  fd.append('email', email);
+  fd.append('field', field);
+  fd.append('value', value);
+  fetch('/admin/users/chamber-toggle', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { alert('Failed to update: ' + (d.error || 'unknown')); cb.checked = !cb.checked; }
+    })
+    .catch(function(e) { alert('Error: ' + e); cb.checked = !cb.checked; });
+}
 </script>
 </body>
 </html>
