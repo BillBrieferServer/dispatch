@@ -387,15 +387,6 @@ def dashboard(request: Request):
 
     existing_ratings = get_ratings(tenant, session_year)
 
-    # Load demo sponsor assignments
-    import json as _json
-    _demo_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'demo_sponsors.json')
-    try:
-        with open(_demo_path) as _f:
-            demo_sponsors = _json.load(_f)
-    except FileNotFoundError:
-        demo_sponsors = {}
-
     conn = get_qibrain_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -450,15 +441,10 @@ def dashboard(request: Request):
         lad = r['last_action_date']
         last_action_fmt = lad.strftime('%m/%d') if lad else ''
 
-        # Sponsor: demo override, then bill_attribution
+        # Sponsor: from bill_attribution (confidence scoring)
         bn = r['bill_number'] or ''
-        demo = demo_sponsors.get(bn)
-        if demo:
-            sponsor_name = demo['name']
-            sponsor_email = demo['email'].lower()
-        else:
-            sponsor_name = (r.get('sponsor_name') or '').replace('Representative ', '').replace('Senator ', '')
-            sponsor_email = (r.get('sponsor_email') or '').lower()
+        sponsor_name = (r.get('sponsor_name') or '').replace('Representative ', '').replace('Senator ', '')
+        sponsor_email = (r.get('sponsor_email') or '').lower()
         rating = existing_ratings.get(sponsor_email) if sponsor_email else None
 
         # Committee: show actual committee name, not procedural stages or short codes
@@ -483,7 +469,6 @@ def dashboard(request: Request):
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
-        chamber = 'House' if bn.upper().startswith('H') else 'Senate' if bn.upper().startswith('S') else ''
 
         bills.append({
             'bill_number': bn,
