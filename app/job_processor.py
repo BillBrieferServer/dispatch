@@ -18,8 +18,6 @@ from app.utils import (
     _read_json, _write_json, _norm_text, _estimate_cost, append_usage_log,
     _load_manual_users,
     BOISE_TZ, JOBS_DIR, DATA_DIR,
-    LEGISCAN_API_KEY, LEGISCAN_BASE_URL, LEGISCAN_STATE,
-    LEGISCAN_SESSION_YEAR, LEGISCAN_SESSION_ID_OVERRIDE,
     DEFAULT_SESSION_YEAR, SESSION_ID_MAP,
     ALERT_EMAIL, NTFY_TOPIC, JOB_TIMEOUT_MINUTES,
 )
@@ -28,7 +26,7 @@ from app.email_sender import send_email
 from app.ai_brief import build_ai_brief
 from app.services.qibrain_data import (
     refresh_bill_from_legislature,
-    get_bill_as_legiscan_format, get_bill_text,
+    get_bill_data, get_bill_text,
     get_bill_fiscal_note, get_bill_sop, store_fiscal_note, store_sop,
     store_bill_text,
     get_bill_votes as qibrain_get_bill_votes,
@@ -44,21 +42,6 @@ except Exception:
     get_state_snapshot = None
 
 logger = logging.getLogger(__name__)
-
-
-def legiscan_call(op: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    if not LEGISCAN_API_KEY:
-        raise RuntimeError("LEGISCAN_API_KEY is not set.")
-    query = {"key": LEGISCAN_API_KEY, "op": op}
-    query.update(params)
-    r = requests.get(LEGISCAN_BASE_URL, params=query, timeout=30)
-    r.raise_for_status()
-    data = r.json()
-    if (data or {}).get("status") != "OK":
-        alert = (data or {}).get("alert") or {}
-        msg = alert.get("message") or str((data or {}).get("status") or "Unknown LegiScan error")
-        raise RuntimeError(f"LegiScan ERROR: {msg}")
-    return data
 
 
 
@@ -579,83 +562,6 @@ def _reflow_pdf_text(text: str) -> str:
     return "\n\n".join(reflowed)
 
 
-def fetch_fiscal_note(bill_obj: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Fetch and extract fiscal note text from bill supplements.
-
-    Idaho bills have fiscal notes in supplements with type_id=3.
-    Returns dict with text, found, supplement_id, date, error.
-    """
-    result = {
-        "found": False,
-        "text": "",
-        "supplement_id": None,
-        "date": None,
-        "error": None,
-    }
-
-    supplements = bill_obj.get("supplements") or []
-    if not isinstance(supplements, list):
-        return result
-
-    # Find fiscal note supplement (type_id=3 = Fiscal Note/Analysis)
-    fiscal_supplement = None
-    for supp in supplements:
-        if not isinstance(supp, dict):
-            continue
-        if supp.get("type_id") == 3:
-            fiscal_supplement = supp
-            break
-
-    if not fiscal_supplement:
-        return result
-
-    supplement_id = fiscal_supplement.get("supplement_id")
-    if not supplement_id:
-        return result
-
-    result["supplement_id"] = supplement_id
-    result["date"] = fiscal_supplement.get("date")
-
-    try:
-        # Fetch supplement content from LegiScan
-        supp_data = legiscan_call("getSupplement", {"id": supplement_id})
-        supp_obj = supp_data.get("supplement") or {}
-
-        # Decode base64 PDF content
-        import base64
-        doc_base64 = supp_obj.get("doc") or ""
-        if not doc_base64:
-            result["error"] = "No document content in supplement"
-            return result
-
-        raw_pdf = base64.b64decode(doc_base64)
-
-        # Extract text from PDF
-        text = _pdf_bytes_to_text(raw_pdf)
-
-        # If pypdf extraction failed, try OCR
-        if not text.strip():
-            text, _ = _ocr_pdf_bytes_to_text(raw_pdf, max_pages=10)
-
-        if text.strip():
-            # Reflow PDF text into proper paragraphs
-            text = _reflow_pdf_text(text)
-            text = text.strip()
-
-            result["found"] = True
-            result["text"] = text
-        else:
-            result["error"] = "Could not extract text from fiscal note PDF"
-
-    except Exception as e:
-        result["error"] = f"{type(e).__name__}: {e}"
-
-    return result
-
-
-
-
 def _fetch_fiscal_note_with_fallback(qibrain_bill_id, bill_obj, display_bill):
     """Fetch fiscal note from QIBrain. On-demand refresh already runs before this."""
     fiscal_note = {"found": False, "text": "", "error": ""}
@@ -833,10 +739,10 @@ def _process_one_job_inner() -> None:
 
         # Get session year from job data or default
         job_session_year = job_data.get("session_year")
-        session_year = job_session_year or LEGISCAN_SESSION_YEAR or DEFAULT_SESSION_YEAR
+        session_year = job_session_year or DEFAULT_SESSION_YEAR
 
         # QIBrain: resolve bill directly by number (replaces masterlist + find_bill_id)
-        bill_payload, bill_obj, qibrain_bill_id = get_bill_as_legiscan_format(
+        bill_payload, bill_obj, qibrain_bill_id = get_bill_data(
             display_bill, session_year=int(session_year)
         )
         bill_id = bill_obj.get("bill_id") if bill_obj else None
@@ -867,7 +773,7 @@ def _process_one_job_inner() -> None:
             return
 
         # QIBrain: bill_payload and bill_obj already populated above
-        # Get bill text from QIBrain; fall back to LegiScan if not yet stored
+        # Get bill text from QIBrain
         job_data["bill_text_ocr_used"] = False
         job_data["bill_text_ocr_pages"] = 0
 
@@ -914,7 +820,7 @@ def _process_one_job_inner() -> None:
 
         # Pre-classify bill topic to get census context BEFORE AI call
         # (So we can pass demographic context to Claude for better analysis)
-        session_label = f"{LEGISCAN_STATE} Legislature — {session_year} Session"
+        session_label = f"ID Legislature — {session_year} Session"
 
         # Build search text from bill metadata (before AI analysis)
         search_text_parts = [
@@ -923,7 +829,7 @@ def _process_one_job_inner() -> None:
         ]
         search_text = " ".join(str(p) for p in search_text_parts)
 
-        # Fetch fiscal note: QIBrain first, LegiScan fallback
+        # Fetch fiscal note from QIBrain
         fiscal_note = _fetch_fiscal_note_with_fallback(qibrain_bill_id, bill_obj, display_bill)
 
         # AI - now with census context and fiscal note passed to the model
@@ -935,13 +841,13 @@ def _process_one_job_inner() -> None:
         fiscal_note_text = fiscal_note.get("text", "") if fiscal_note.get("found") else ""
 
         # Extract bill metadata for caching
-        # Use qibrain_bill_id (internal) for data lookups; legiscan bill_id for cache key
+        # Use qibrain_bill_id for data lookups
         session_id_for_cache = bill_obj.get("session", {}).get("session_id") if bill_obj else None
         change_hash_for_cache = bill_obj.get("change_hash", "") if bill_obj else None
 
         ai_json, ai_err, ai_model, ai_was_invalidated, ai_token_usage = build_ai_brief(
             bill_number=display_bill,
-            legiscan_bill=bill_payload,
+            bill_data=bill_payload,
             bill_text=bill_text,
             fiscal_note_text=fiscal_note_text,
             bill_id=qibrain_bill_id,
@@ -1023,7 +929,7 @@ def _process_one_job_inner() -> None:
             ld_code = f"LD{district_num:02d}"
 
 
-        # Fetch fiscal note: QIBrain first, LegiScan fallback
+        # Fetch fiscal note from QIBrain
         fiscal_note = _fetch_fiscal_note_with_fallback(qibrain_bill_id, bill_obj, display_bill)
 
         # Fetch individual legislator votes from QIBrain

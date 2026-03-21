@@ -95,7 +95,7 @@ def _format_bill(prefix: str, num_str: str) -> str:
 def lookup_bill_id(conn, bill_number: str) -> int | None:
     """Look up bill_id from idaho.bills by bill_number (2026 session preferred)."""
     with conn.cursor() as cur:
-        # Prefer 2026 session (legiscan_session_id=2246)
+        # Prefer 2026 session
         cur.execute(
             "SELECT bill_id FROM idaho.bills WHERE bill_number = %s AND legiscan_session_id = 2246 LIMIT 1",
             (bill_number,)

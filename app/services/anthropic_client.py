@@ -85,7 +85,7 @@ def _call_with_retry(
 def generate_briefing(
     bill_number: str,
     bill_text: str,
-    legiscan_bill: Dict[str, Any],
+    bill_data: Dict[str, Any],
     fiscal_note_text: str = "",
     sponsor_context: str = "",
     momentum_context: str = "",
@@ -96,7 +96,7 @@ def generate_briefing(
     Args:
         bill_number: Bill identifier (e.g., "H0416")
         bill_text: Full or truncated bill text
-        legiscan_bill: Bill metadata dict
+        bill_data: Bill metadata dict (from QIBrain)
         fiscal_note_text: Statement of Purpose / Fiscal Note
         sponsor_context: Pre-formatted sponsor data string
         momentum_context: Pre-formatted momentum data string
@@ -116,12 +116,12 @@ def generate_briefing(
 
     # Build concise metadata
     metadata = {
-        "title": legiscan_bill.get("title", ""),
-        "description": legiscan_bill.get("description", ""),
-        "sponsors": legiscan_bill.get("sponsors", []),
-        "status": legiscan_bill.get("status", ""),
-        "last_action": legiscan_bill.get("last_action", ""),
-        "last_action_date": legiscan_bill.get("last_action_date", ""),
+        "title": bill_data.get("title", ""),
+        "description": bill_data.get("description", ""),
+        "sponsors": bill_data.get("sponsors", []),
+        "status": bill_data.get("status", ""),
+        "last_action": bill_data.get("last_action", ""),
+        "last_action_date": bill_data.get("last_action_date", ""),
     }
 
     user_message = f"""Analyze this Idaho bill and generate the Dispatch briefing JSON.

@@ -690,7 +690,7 @@ def _build_sponsor_display(bill_id: int) -> dict:
 def build_ai_brief(
     *,
     bill_number: str,
-    legiscan_bill: Dict[str, Any],
+    bill_data: Dict[str, Any],
     bill_text: str,
     fiscal_note_text: str = "",
     bill_id: int = None,
@@ -736,7 +736,7 @@ def build_ai_brief(
     result, error, token_usage = anthropic_generate(
         bill_number=bill_number,
         bill_text=bill_text,
-        legiscan_bill=legiscan_bill,
+        bill_data=bill_data,
         fiscal_note_text=fiscal_note_text,
         sponsor_context=sponsor_context,
         momentum_context=momentum_context,
@@ -746,7 +746,7 @@ def build_ai_brief(
         return None, error, "none", False, {}
 
     # --- Generate S3 + S4 modules in parallel ---
-    bill_title = legiscan_bill.get("title", "") or legiscan_bill.get("description", "")
+    bill_title = bill_data.get("title", "") or bill_data.get("description", "")
     s3_result, s3_error, s3_tokens = None, None, {}
     s4_result, s4_error, s4_tokens = None, None, {}
 

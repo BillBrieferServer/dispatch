@@ -1,6 +1,6 @@
 """Domain-specific policy guidance data and mapping functions.
 
-Maps LegiScan subjects to policy domains with Idaho-specific analysis guidance.
+Maps bill subjects to policy domains with Idaho-specific analysis guidance.
 """
 import logging
 from typing import Any, Dict
@@ -8,7 +8,7 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 
-# Map LegiScan subject names to our domain categories
+# Map subject names to our domain categories
 SUBJECT_TO_DOMAIN = {
     # Education
     "Education": "education",
@@ -673,10 +673,10 @@ QUESTIONS TO PROBE:
 }
 
 
-def _extract_subjects(legiscan_bill: Dict[str, Any]) -> list:
-    """Extract subject names from LegiScan bill data."""
+def _extract_subjects(bill_data: Dict[str, Any]) -> list:
+    """Extract subject names from bill data."""
     subjects = []
-    bill_data = legiscan_bill.get("bill", legiscan_bill) if isinstance(legiscan_bill, dict) else {}
+    bill_data = bill_data.get("bill", bill_data) if isinstance(bill_data, dict) else {}
     raw_subjects = bill_data.get("subjects", []) or []
 
     for subj in raw_subjects:

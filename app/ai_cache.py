@@ -116,7 +116,7 @@ def get_cached_briefing(bill_id: int, current_change_hash: str = None) -> Option
     Get cached AI briefing for a bill.
 
     Args:
-        bill_id: LegiScan bill ID
+        bill_id: Bill ID
         current_change_hash: If provided, only return if hash matches (bill unchanged)
 
     Returns:
@@ -164,8 +164,8 @@ def cache_briefing(
     Cache AI briefing result for a bill.
 
     Args:
-        bill_id: LegiScan bill ID
-        session_id: LegiScan session ID
+        bill_id: Bill ID
+        session_id: Session ID
         bill_number: Bill identifier (e.g., "H0416")
         ai_json: Parsed AI output
         model_used: "anthropic" or "openai"

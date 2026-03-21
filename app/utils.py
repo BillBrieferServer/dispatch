@@ -97,12 +97,7 @@ SMTP_PASS = os.getenv("SMTP_PASS", "").strip()
 # --- Worker config ---
 JOB_WORKER_INTERVAL_SECONDS = int(os.getenv("JOB_WORKER_INTERVAL_SECONDS", "10").strip() or "10")
 
-# --- LegiScan (kept for legiscan_call) ---
-LEGISCAN_API_KEY = os.getenv("LEGISCAN_API_KEY", "").strip()
-LEGISCAN_BASE_URL = "https://api.legiscan.com/"
-LEGISCAN_STATE = os.getenv("LEGISCAN_STATE", "ID").strip().upper()
-LEGISCAN_SESSION_YEAR = os.getenv("LEGISCAN_SESSION_YEAR", "").strip()
-LEGISCAN_SESSION_ID_OVERRIDE = os.getenv("LEGISCAN_SESSION_ID", "").strip()
+
 
 # --- App URL ---
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://sand.billbriefer.com").strip().rstrip("/")

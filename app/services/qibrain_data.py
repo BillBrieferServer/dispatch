@@ -5,7 +5,7 @@ Single module for all QIBrain PostgreSQL reads used by the Bill Briefer.
 Every function returns the same data structure the current code produces,
 so callers (section generators, formatters, etc.) don't need to change.
 
-Replaces: legiscan_sync.sqlite, LegiScan API calls, Census JSON files,
+QIBrain data access layer. Census, legislator, and bill data.
           IdahoLegislature.xlsx
 """
 
@@ -28,13 +28,13 @@ def get_qibrain_connection():
 
 
 # ---------------------------------------------------------------------------
-# Bill Data (replaces LegiScan API + legiscan_sync.sqlite)
+# Bill Data
 # ---------------------------------------------------------------------------
 
 def get_bill(bill_number, session_year=2026):
     """
     Get bill metadata by bill number and session year.
-    Replaces: LegiScan API getBill / legiscan_sync.sqlite lookup.
+    Look up a bill by number in QIBrain.
     Returns dict matching the structure the briefer expects, or None.
     """
     conn = get_qibrain_connection()
@@ -76,7 +76,7 @@ def get_bill(bill_number, session_year=2026):
 def get_bill_text(bill_id):
     """
     Get full bill text.
-    Replaces: LegiScan getBillText -> base64 PDF decode -> text extraction.
+    Get full text for a bill from QIBrain.
     Returns str or None if not yet synced.
     """
     conn = get_qibrain_connection()
@@ -94,7 +94,7 @@ def get_bill_text(bill_id):
 def get_bill_sponsors(bill_id):
     """
     Get sponsors for a bill.
-    Replaces: legiscan_sync.sqlite sponsors lookup.
+    Get sponsors for a bill from QIBrain.
     Returns list of dicts.
     """
     conn = get_qibrain_connection()
@@ -115,7 +115,7 @@ def get_bill_sponsors(bill_id):
 def get_bill_actions(bill_id):
     """
     Get actions/history for a bill, most recent first.
-    Tries bill_actions (LegiScan-sourced) first, falls back to bill_events
+    Tries bill_actions first, falls back to bill_events
     (scraped from legislature.idaho.gov) when bill_actions is empty or has
     fewer entries.
     Returns list of dicts with keys: action_date, action, chamber, importance.
@@ -123,7 +123,7 @@ def get_bill_actions(bill_id):
     conn = get_qibrain_connection()
     try:
         with conn.cursor() as cur:
-            # Primary source: bill_actions (LegiScan)
+            # Primary source: bill_actions
             cur.execute("""
                 SELECT action_date::text AS action_date, action, chamber, importance
                 FROM bill_actions
@@ -177,7 +177,7 @@ def get_bill_actions(bill_id):
 def get_bill_votes(bill_id):
     """
     Get roll call votes for a bill with individual legislator votes.
-    Replaces: LegiScan getRollCall calls.
+    Get roll call votes for a bill from QIBrain.
     Returns list of roll call dicts with nested individual_votes.
     """
     conn = get_qibrain_connection()
@@ -213,7 +213,7 @@ def get_bill_votes(bill_id):
 def get_bill_fiscal_note(bill_id):
     """
     Get fiscal note text for a bill.
-    Replaces: LegiScan getSupplement -> PDF decode -> text extraction.
+    Get fiscal note / SOP text for a bill from QIBrain.
     Returns str or None if not yet available.
     """
     conn = get_qibrain_connection()
@@ -231,7 +231,7 @@ def get_bill_fiscal_note(bill_id):
 def get_bill_sop(bill_id):
     """
     Get Statement of Purpose text for a bill.
-    Replaces: LegiScan getSupplement -> PDF decode -> text extraction.
+    Get fiscal note / SOP text for a bill from QIBrain.
     Returns str or None if not yet available.
     """
     conn = get_qibrain_connection()
@@ -292,20 +292,20 @@ def _get_session_info(legiscan_session_id):
 
 
 # ---------------------------------------------------------------------------
-# LegiScan-format adapter (bridges QIBrain data to existing code expectations)
+# Bill data adapter (structures QIBrain data for downstream code)
 # ---------------------------------------------------------------------------
 
-def get_bill_as_legiscan_format(bill_number, session_year=2026):
+def get_bill_data(bill_number, session_year=2026):
     """
-    Assemble a complete bill dict in LegiScan API format.
+    Assemble a complete bill data dict from QIBrain.
 
     This is the key adapter function. The rest of the codebase (ai_brief.py,
-    anthropic_client.py, briefer_format.py) expects data in LegiScan API format.
+    anthropic_client.py, briefer_format.py) expects a standardized dict format.
     This function queries QIBrain and assembles the same structure.
 
     Returns tuple: (bill_payload, bill_obj, qibrain_bill_id)
-        - bill_payload: dict mimicking legiscan_call("getBill") response
-          (passed to build_ai_brief as legiscan_bill)
+        - bill_payload: dict with bill metadata
+          (passed to build_ai_brief as bill_data)
         - bill_obj: the inner bill dict (bill_payload["bill"])
           (used in main.py for metadata access)
         - qibrain_bill_id: the QIBrain bills.bill_id (for cache/store operations)
@@ -335,7 +335,7 @@ def get_bill_as_legiscan_format(bill_number, session_year=2026):
     votes = get_bill_votes(qibrain_bill_id)
     bill_text = get_bill_text(qibrain_bill_id)
 
-    # Format sponsors to match LegiScan structure
+    # Format sponsors
     formatted_sponsors = []
     for s in sponsors:
         formatted_sponsors.append({
@@ -352,7 +352,7 @@ def get_bill_as_legiscan_format(bill_number, session_year=2026):
             "sponsor_order": s.get("sponsor_order", 0),
         })
 
-    # Format history to match LegiScan structure
+    # Format history
     formatted_history = []
     for a in actions:
         formatted_history.append({
@@ -364,7 +364,7 @@ def get_bill_as_legiscan_format(bill_number, session_year=2026):
             "importance": a.get("importance", 0),
         })
 
-    # Format votes to match LegiScan structure
+    # Format votes
     formatted_votes = []
     for v in votes:
         passed = 1 if v.get("result", "").lower() in ("passed", "pass") else 0
@@ -403,7 +403,7 @@ def get_bill_as_legiscan_format(bill_number, session_year=2026):
         elif isinstance(subj, str):
             formatted_subjects.append({"subject_name": subj})
 
-    # Build the inner bill object (matches LegiScan getBill response structure)
+    # Build the inner bill object
     bill_obj = {
         "bill_id": legiscan_bill_id or qibrain_bill_id,
         "session_id": bill.get("legiscan_session_id", 0),
@@ -432,12 +432,12 @@ def get_bill_as_legiscan_format(bill_number, session_year=2026):
         "subjects": formatted_subjects,
     }
 
-    # bill_payload wraps like LegiScan API response — but also includes
-    # top-level fields for code that accesses legiscan_bill.get("title") directly
+    # bill_payload includes bill object plus
+    # top-level fields for code that accesses bill_data.get("title") directly
     bill_payload = {
         "status": "OK",
         "bill": bill_obj,
-        # Top-level fields for anthropic_client.py which does legiscan_bill.get("title")
+        # Top-level fields for anthropic_client.py which does bill_data.get("title")
         "title": bill_obj["title"],
         "description": bill_obj["description"],
         "state": "ID",
@@ -814,7 +814,7 @@ def get_all_legislators():
 
 
 # ---------------------------------------------------------------------------
-# Bill Search (replaces LegiScan getSearch API)
+# Bill Search
 # ---------------------------------------------------------------------------
 
 
