@@ -331,6 +331,144 @@ async def admin_chamber_toggle(request: Request):
 
     return JSONResponse({"ok": True, "updated": updated})
 
+
+
+# ── Admin Activity Dashboard ──
+
+@router.get("/admin/activity", response_class=HTMLResponse)
+def admin_activity_page(request: Request):
+    redir = _require_admin(request)
+    if redir:
+        return redir
+
+    from datetime import datetime, timedelta, timezone
+    import time as _time
+
+    now_utc = datetime.utcnow()
+    online_cutoff = now_utc - timedelta(minutes=30)
+    today_cutoff = now_utc - timedelta(hours=24)
+    week_cutoff = now_utc - timedelta(days=7)
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+
+        # All users
+        cur.execute("""
+            SELECT id, email, name, chamber, can_view_house, can_view_senate,
+                   created_at, last_login
+            FROM users
+            ORDER BY last_login DESC NULLS LAST
+        """)
+        db_users = [dict(r) for r in cur.fetchall()]
+
+        # All active sessions
+        cur.execute("""
+            SELECT st.user_id, u.email, u.name, st.last_used, st.ip_address
+            FROM session_tokens st
+            JOIN users u ON st.user_id = u.id
+            WHERE st.expires_at > ?
+            ORDER BY st.last_used DESC
+        """, (now_utc.isoformat(),))
+        sessions = [dict(r) for r in cur.fetchall()]
+
+    # Count briefer jobs per user
+    briefer_counts = {}
+    for jf in JOBS_DIR.glob("*.json"):
+        try:
+            d = _read_json(jf)
+            if d:
+                em = (d.get("email") or "").lower()
+                if em:
+                    briefer_counts[em] = briefer_counts.get(em, 0) + 1
+        except Exception:
+            pass
+
+    def parse_dt(s):
+        if not s:
+            return None
+        try:
+            return datetime.fromisoformat(s.replace("Z", "+00:00").replace("+00:00", ""))
+        except Exception:
+            return None
+
+    def fmt_date(s):
+        dt = parse_dt(s)
+        if not dt:
+            return "never"
+        return dt.strftime("%b %d, %Y")
+
+    def fmt_ago(s):
+        dt = parse_dt(s)
+        if not dt:
+            return "never"
+        diff = (now_utc - dt).total_seconds()
+        if diff < 60:
+            return f"{int(diff)}s ago"
+        if diff < 3600:
+            return f"{int(diff/60)}m ago"
+        if diff < 86400:
+            return f"{int(diff/3600)}h ago"
+        return f"{int(diff/86400)}d ago"
+
+    # Build online sessions list
+    online_sessions = []
+    online_user_ids = set()
+    today_user_ids = set()
+    week_user_ids = set()
+
+    for s in sessions:
+        last_used = parse_dt(s["last_used"])
+        if last_used and last_used > online_cutoff:
+            online_sessions.append({
+                "name": s["name"] or s["email"],
+                "email": s["email"],
+                "ip": s["ip_address"] or "unknown",
+                "last_active_ago": fmt_ago(s["last_used"]),
+            })
+            online_user_ids.add(s["user_id"])
+        if last_used and last_used > today_cutoff:
+            today_user_ids.add(s["user_id"])
+        if last_used and last_used > week_cutoff:
+            week_user_ids.add(s["user_id"])
+
+    # Also check last_login for today/week counts
+    for u in db_users:
+        ll = parse_dt(u["last_login"])
+        if ll and ll > today_cutoff:
+            today_user_ids.add(u["id"])
+        if ll and ll > week_cutoff:
+            week_user_ids.add(u["id"])
+
+    # Build user list
+    users = []
+    for u in db_users:
+        is_online = u["id"] in online_user_ids
+        active_today = u["id"] in today_user_ids
+        status_class = "online" if is_online else "recent" if active_today else "inactive"
+        users.append({
+            "name": u["name"] or u["email"],
+            "email": u["email"],
+            "chamber": u["chamber"] or "",
+            "can_view_house": u["can_view_house"],
+            "can_view_senate": u["can_view_senate"],
+            "created_fmt": fmt_date(u["created_at"]),
+            "last_login_fmt": fmt_ago(u["last_login"]),
+            "briefers_count": briefer_counts.get(u["email"].lower(), 0),
+            "is_online": is_online,
+            "active_today": active_today,
+            "status_class": status_class,
+        })
+
+    return _get_templates().TemplateResponse("admin_activity.html", {
+        "request": request,
+        "online_count": len(online_user_ids),
+        "today_count": len(today_user_ids),
+        "week_count": len(week_user_ids),
+        "total_users": len(db_users),
+        "online_sessions": online_sessions,
+        "users": users,
+    })
+
 # ── Admin Demo Briefer Generator ──
 
 

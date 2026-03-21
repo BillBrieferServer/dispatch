@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Activity</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:12px;font-size:14px}
+a{color:#60a5fa;text-decoration:none}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;font-weight:600}
+.btn{display:inline-block;padding:10px 16px;border-radius:8px;border:none;font-size:14px;font-weight:500;cursor:pointer;text-align:center}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-ghost{background:transparent;border:1px solid #475569;color:#94a3b8}
+
+.section-title{font-size:16px;font-weight:600;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{background:#052e16;color:#4ade80}
+.badge-yellow{background:#422006;color:#fcd34d}
+.badge-gray{background:#1e293b;color:#94a3b8}
+
+/* Cards */
+.card{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px}
+.metric{background:#0f172a;border-radius:8px;padding:10px;text-align:center}
+.metric .val{font-size:22px;font-weight:700}
+.metric .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+
+/* User rows */
+.user-card{background:#1e293b;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid #475569}
+.user-card.online{border-left-color:#22c55e}
+.user-card.recent{border-left-color:#3b82f6}
+.user-card.inactive{border-left-color:#475569}
+.user-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:4px}
+.user-name{font-weight:600;font-size:15px}
+.user-email{font-size:12px;color:#cbd5e1;margin-bottom:2px}
+.user-meta{font-size:12px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:6px 14px}
+.chamber-badge{font-size:11px;padding:2px 6px;border-radius:6px;font-weight:600}
+.chamber-h{background:#172554;color:#93c5fd}
+.chamber-s{background:#3b0764;color:#d8b4fe}
+.chamber-both{background:#052e16;color:#4ade80}
+
+/* Session rows */
+.session-row{background:#0f172a;border-radius:8px;padding:8px 12px;margin-bottom:4px;font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.session-row .ip{color:#94a3b8;font-family:'Courier New',monospace}
+
+@media(min-width:768px){
+  body{max-width:900px;margin:0 auto;padding:24px}
+  .metrics{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>User Activity</h1>
+  <div>
+    <a href="/" class="btn btn-sm btn-ghost">Home</a>
+    <a href="/admin/users" class="btn btn-sm btn-ghost">Users</a>
+    <a href="/admin/ops" class="btn btn-sm btn-ghost">Ops</a>
+    <a href="/admin/reports" class="btn btn-sm btn-ghost">Reports</a>
+    <a href="/admin/admins" class="btn btn-sm btn-ghost">Admins</a>
+    <a href="/admin/demo" class="btn btn-sm btn-ghost">Demo</a>
+    <a href="/admin/activity" class="btn btn-sm btn-ghost">Refresh</a>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="card">
+  <div class="metrics">
+    <div class="metric"><div class="val" style="color:#4ade80">{{ online_count }}</div><div class="lbl">Online Now</div></div>
+    <div class="metric"><div class="val">{{ today_count }}</div><div class="lbl">Active Today</div></div>
+    <div class="metric"><div class="val">{{ week_count }}</div><div class="lbl">Active 7 Days</div></div>
+    <div class="metric"><div class="val">{{ total_users }}</div><div class="lbl">Total Accounts</div></div>
+  </div>
+</div>
+
+<!-- Online Now -->
+{% if online_sessions %}
+<div class="section-title"><span>Online Now</span> <span class="badge badge-green">{{ online_sessions|length }}</span></div>
+{% for s in online_sessions %}
+<div class="session-row">
+  <span><strong>{{ s.name }}</strong> &mdash; {{ s.email }}</span>
+  <span>{{ s.last_active_ago }} &middot; <span class="ip">{{ s.ip }}</span></span>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- All Users -->
+<div class="section-title"><span>All Users</span></div>
+{% for u in users %}
+<div class="user-card {{ u.status_class }}">
+  <div class="user-top">
+    <span class="user-name">{{ u.name }}</span>
+    <div>
+      {% if u.can_view_house and u.can_view_senate %}
+      <span class="chamber-badge chamber-both">H+S</span>
+      {% elif u.can_view_house %}
+      <span class="chamber-badge chamber-h">House</span>
+      {% elif u.can_view_senate %}
+      <span class="chamber-badge chamber-s">Senate</span>
+      {% endif %}
+      {% if u.is_online %}
+      <span class="badge badge-green">online</span>
+      {% elif u.active_today %}
+      <span class="badge badge-yellow">today</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="user-email">{{ u.email }}</div>
+  <div class="user-meta">
+    <span>Joined {{ u.created_fmt }}</span>
+    <span>Last login {{ u.last_login_fmt }}</span>
+    {% if u.briefers_count %}<span>{{ u.briefers_count }} briefer{{ 's' if u.briefers_count != 1 else '' }}</span>{% endif %}
+  </div>
+</div>
+{% endfor %}
+
+</body>
+</html>
