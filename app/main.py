@@ -377,6 +377,7 @@ def dashboard(request: Request):
     if redir:
         return redir
 
+    user = current_user(request)
     from app.services.qibrain_data import get_qibrain_connection
     from datetime import date
 
