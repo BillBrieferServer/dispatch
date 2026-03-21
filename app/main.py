@@ -469,6 +469,7 @@ def dashboard(request: Request):
 
         # Chamber from bill number prefix
         bn = r['bill_number'] or ''
+        chamber = 'House' if bn.startswith('H') else 'Senate'
 
         bills.append({
             'bill_number': bn,
