@@ -63,8 +63,8 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 <input type="checkbox" name="emails" value="{{ leg.email }}" id="leg-{{ loop.index }}" class="leg-checkbox senator" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
 <label for="leg-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
 <div class="chamber-toggles">
-<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>H</label>
-<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>S</label>
+<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)">H</label>
+<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)">S</label>
 {% if not leg.has_account %}<span class="no-account">(no acct)</span>{% endif %}
 </div>
 </div>
@@ -82,8 +82,8 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 <input type="checkbox" name="emails" value="{{ leg.email }}" id="rep-{{ loop.index }}" class="leg-checkbox representative" {% if leg.authorized %}checked{% endif %} onchange="updateCounts()">
 <label for="rep-{{ loop.index }}"><div class="legislator-name">{{ leg.display_name }}</div><div class="legislator-email">{{ leg.email }}</div></label>
 <div class="chamber-toggles">
-<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>H</label>
-<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not leg.has_account %}disabled{% endif %}>S</label>
+<label class="{% if leg.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_house" {% if leg.can_view_house %}checked{% endif %} onchange="toggleChamber(this)">H</label>
+<label class="{% if leg.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ leg.email }}" data-field="can_view_senate" {% if leg.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)">S</label>
 {% if not leg.has_account %}<span class="no-account">(no acct)</span>{% endif %}
 </div>
 </div>
@@ -104,8 +104,8 @@ body { font-family: system-ui; max-width: 960px; margin: 48px auto; padding: 0 1
 <span class="no-district">No district</span>
 {% endif %}
 <div class="chamber-toggles">
-<label class="{% if user.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_house" {% if user.can_view_house %}checked{% endif %} onchange="toggleChamber(this)" {% if not user.has_account %}disabled{% endif %}>H</label>
-<label class="{% if user.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_senate" {% if user.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)" {% if not user.has_account %}disabled{% endif %}>S</label>
+<label class="{% if user.can_view_house %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_house" {% if user.can_view_house %}checked{% endif %} onchange="toggleChamber(this)">H</label>
+<label class="{% if user.can_view_senate %}active{% endif %}"><input type="checkbox" data-email="{{ user.email }}" data-field="can_view_senate" {% if user.can_view_senate %}checked{% endif %} onchange="toggleChamber(this)">S</label>
 {% if not user.has_account %}<span class="no-account">(no acct)</span>{% endif %}
 </div>
 <span class="email">{{ user.email }}</span>
