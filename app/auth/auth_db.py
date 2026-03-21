@@ -61,6 +61,15 @@ def init_auth_db():
             )
         """)
 
+        # Chamber preferences for pre-registration users
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chamber_prefs (
+                email TEXT PRIMARY KEY,
+                can_view_house INTEGER DEFAULT 1,
+                can_view_senate INTEGER DEFAULT 1
+            )
+        """)
+
         # MFA codes table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS mfa_codes (

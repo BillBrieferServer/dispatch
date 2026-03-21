@@ -602,7 +602,15 @@ async def register_password_submit(
 
     # Determine chamber access based on email domain
     _email_lower = email.lower()
-    if _email_lower.endswith('@senate.idaho.gov'):
+    # Check if admin pre-set chamber access before registration
+    from app.auth.auth_db import get_db_connection as _get_db
+    with _get_db() as _conn:
+        _cur = _conn.cursor()
+        _cur.execute("SELECT can_view_house, can_view_senate FROM chamber_prefs WHERE email = ?", (_email_lower,))
+        _pref = _cur.fetchone()
+    if _pref:
+        _can_view_house, _can_view_senate = _pref[0], _pref[1]
+    elif _email_lower.endswith('@senate.idaho.gov'):
         _can_view_house, _can_view_senate = 0, 1
     elif _email_lower.endswith('@house.idaho.gov'):
         _can_view_house, _can_view_senate = 1, 0

@@ -91,11 +91,17 @@ def _get_chamber_access(email: str, default_title: str = '') -> dict:
     """Look up chamber access flags for a user from auth DB."""
     with get_db_connection() as conn:
         cur = conn.cursor()
+        # Check registered users first
         cur.execute("SELECT can_view_house, can_view_senate FROM users WHERE email = ?", (email.lower(),))
         row = cur.fetchone()
         if row:
             return {"can_view_house": row[0], "can_view_senate": row[1], "has_account": True}
-    # No account yet — default based on title/email
+        # Check pre-registration chamber prefs
+        cur.execute("SELECT can_view_house, can_view_senate FROM chamber_prefs WHERE email = ?", (email.lower(),))
+        row = cur.fetchone()
+        if row:
+            return {"can_view_house": row[0], "can_view_senate": row[1], "has_account": False}
+    # No stored prefs — default based on title/email
     is_senator = 'senator' in default_title.lower() or email.lower().endswith('@senate.idaho.gov')
     is_rep = 'representative' in default_title.lower() or email.lower().endswith('@house.idaho.gov')
     if is_senator:
@@ -325,11 +331,25 @@ async def admin_chamber_toggle(request: Request):
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        # Try updating registered user first
         cursor.execute(f"UPDATE users SET {field} = ? WHERE email = ?", (value, email))
         conn.commit()
-        updated = cursor.rowcount
+        if cursor.rowcount > 0:
+            return JSONResponse({"ok": True, "updated": 1})
+        # No registered account — store in chamber_prefs for when they register
+        cursor.execute("SELECT email FROM chamber_prefs WHERE email = ?", (email,))
+        if cursor.fetchone():
+            cursor.execute(f"UPDATE chamber_prefs SET {field} = ? WHERE email = ?", (value, email))
+        else:
+            # Insert with defaults, then set the field
+            h_default = 0 if email.endswith('@senate.idaho.gov') else 1
+            s_default = 0 if email.endswith('@house.idaho.gov') else 1
+            cursor.execute("INSERT INTO chamber_prefs (email, can_view_house, can_view_senate) VALUES (?, ?, ?)",
+                           (email, h_default, s_default))
+            cursor.execute(f"UPDATE chamber_prefs SET {field} = ? WHERE email = ?", (value, email))
+        conn.commit()
 
-    return JSONResponse({"ok": True, "updated": updated})
+    return JSONResponse({"ok": True, "updated": 1})
 
 
 
