@@ -396,10 +396,11 @@ def format_full_briefer(
     else:
         committee = sd.get("committee")
         if committee:
-            parts.append(f"Committee-sponsored: {committee}")
-            parts.append("No individual legislator sponsor identified.")
+            parts.append(f"Committee-introduced: {committee}")
+            parts.append("Individual sponsor could not be identified from available records.")
         else:
-            parts.append("(Sponsor data unavailable.)")
+            parts.append("Sponsor: Unidentified")
+            parts.append("No sponsor could be determined from SOP, committee minutes, or floor records.")
     parts.append("")
 
     # --- Section 3: Unintended Consequences ---

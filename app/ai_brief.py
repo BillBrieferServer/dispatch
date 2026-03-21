@@ -155,7 +155,7 @@ def _build_sponsor_context(bill_id: int) -> str:
                 attr = cur.fetchone()
 
                 if not attr or not attr.get('attributed_legislator_id'):
-                    return "Committee-sponsored bill — no named individual sponsor."
+                    return "Committee-introduced bill — individual sponsor could not be identified from available legislative records."
 
                 name = attr['attributed_name']
                 party = attr.get('party', '')
@@ -425,8 +425,8 @@ def _build_sponsor_display(bill_id: int) -> dict:
                     district = attr.get('district_id', '')
                     ld = f"LD{district}" if district else ""
 
-                    if attr.get('attribution_source') in ('committee_chair',):
-                        committee_name = attr.get('committee_name')
+                    # attribution_source now uses confidence scoring (no committee_chair fallback)
+                    pass  # committee_name set below if no individual sponsor
 
                     # Bill count
                     cur.execute("""
