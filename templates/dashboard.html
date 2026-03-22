@@ -133,15 +133,21 @@
       </div>
     </div>
 
-    <p class="attribution-note">Sponsor identified by cross-referencing multiple legislative sources. <a onclick="document.getElementById('attr-modal').classList.add('active')">Learn more</a></p>
+    <p class="attribution-note">Sponsors verified through a 4-source confidence scoring system. <a onclick="document.getElementById('attr-modal').classList.add('active')">Learn more</a></p>
 
     <div class="modal-overlay" id="attr-modal" onclick="if(event.target===this)this.classList.remove('active')">
       <div class="modal-box">
         <button class="modal-close" onclick="document.getElementById('attr-modal').classList.remove('active')">&times;</button>
         <h3>How We Identify Sponsors</h3>
-        <p>We cross-reference multiple official sources to identify the most likely sponsor: the Statement of Purpose (SOP) contact, committee minutes (who presented the bill), and floor sponsor designations.</p>
-        <p>When multiple sources agree, confidence is highest. When only one source is available, we use it but with lower confidence. In the small number of cases where no legislative contact can be identified, the sponsor is shown as &ldquo;Unidentified.&rdquo;</p>
-        <p>This attribution is automated and updated daily. It reflects the most likely sponsor based on official legislative records.</p>
+        <p>Each bill is run through a <strong>4-source confidence scoring system</strong> that cross-references independent legislative records:</p>
+        <ol style="margin:0.5em 0 0.5em 1.2em;line-height:1.6">
+          <li><strong>Direct sponsor</strong> &mdash; individual sponsor listed in LegiScan bill data</li>
+          <li><strong>Statement of Purpose (SOP) contact</strong> &mdash; legislator named in the official SOP filing</li>
+          <li><strong>Committee presenter</strong> &mdash; who presented the bill in committee minutes</li>
+          <li><strong>Floor sponsor</strong> &mdash; sponsor confirmed during floor proceedings</li>
+        </ol>
+        <p style="margin-top:0.6em"><strong>Confirmed</strong> = 3+ sources agree &bull; <strong>High</strong> = 2 sources agree &bull; <strong>Medium</strong> = 1 source available. When sources disagree, the highest-priority signal is used. Bills with no identifiable sponsor are shown as &ldquo;Unidentified.&rdquo;</p>
+        <p>This attribution is automated and reflects official Idaho legislative records.</p>
       </div>
     </div>
 
