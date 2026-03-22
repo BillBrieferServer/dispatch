@@ -139,15 +139,21 @@
       <div class="modal-box">
         <button class="modal-close" onclick="document.getElementById('attr-modal').classList.remove('active')">&times;</button>
         <h3>How We Identify Sponsors</h3>
-        <p>Each bill is run through a <strong>4-source confidence scoring system</strong> that cross-references independent legislative records:</p>
+        <p>Idaho does not formally list a single bill sponsor in a consistent way. To solve this, we built an automated <strong>4-source confidence scoring system</strong> that cross-references independent records from the Idaho Legislature website daily:</p>
         <ol style="margin:0.5em 0 0.5em 1.2em;line-height:1.6">
-          <li><strong>Direct sponsor</strong> &mdash; individual sponsor from official Idaho Legislature bill records</li>
-          <li><strong>Statement of Purpose (SOP) contact</strong> &mdash; legislator named in the official SOP filing</li>
-          <li><strong>Committee presenter</strong> &mdash; who presented the bill in committee minutes</li>
-          <li><strong>Floor sponsor</strong> &mdash; sponsor confirmed during floor proceedings</li>
+          <li><strong>Bill sponsor record</strong> &mdash; the individual sponsor listed on the official bill page at legislature.idaho.gov</li>
+          <li><strong>Statement of Purpose (SOP) contact</strong> &mdash; the legislator named as the contact on the bill&rsquo;s Statement of Purpose filing</li>
+          <li><strong>Committee presenter</strong> &mdash; the legislator who presented or introduced the bill in committee, extracted from published committee minutes PDFs</li>
+          <li><strong>Floor sponsor</strong> &mdash; the legislator confirmed as floor sponsor in committee minutes (e.g., &ldquo;Rep. Smith will sponsor the bill on the floor&rdquo;)</li>
         </ol>
-        <p style="margin-top:0.6em"><strong>Confirmed</strong> = 3+ sources agree &bull; <strong>High</strong> = 2 sources agree &bull; <strong>Medium</strong> = 1 source available. When sources disagree, the highest-priority signal is used. Bills with no identifiable sponsor are shown as &ldquo;Unidentified.&rdquo;</p>
-        <p>This attribution is automated and reflects official Idaho legislative records.</p>
+        <p style="margin-top:0.6em">When multiple sources point to the same legislator, confidence increases:</p>
+        <ul style="margin:0.3em 0 0.5em 1.2em;line-height:1.6">
+          <li><strong>Confirmed</strong> &mdash; 3 or more sources agree</li>
+          <li><strong>High</strong> &mdash; 2 sources agree</li>
+          <li><strong>Medium</strong> &mdash; only 1 source available</li>
+        </ul>
+        <p>When sources disagree, the system prioritizes the strongest signal: bill sponsor record first, then floor sponsor, committee presenter, and SOP contact. In the small number of cases where no legislative contact can be identified, the sponsor is shown as &ldquo;Unidentified.&rdquo;</p>
+        <p style="margin-top:0.6em">Committee minutes are scraped and parsed automatically each weekday morning. The scoring system then re-evaluates every bill, so sponsor attributions improve over time as more minutes become available during the session. Currently covering 98.8% of all bills.</p>
       </div>
     </div>
 
