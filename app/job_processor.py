@@ -1,6 +1,7 @@
 """Job processing, bill resolution, and worker logic for the Bill Briefer application."""
 
 import fcntl
+import hashlib
 import io
 import logging
 import os
