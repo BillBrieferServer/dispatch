@@ -770,6 +770,10 @@ def _process_one_job_inner() -> None:
         # Use qibrain_bill_id for data lookups
         session_id_for_cache = bill_obj.get("session", {}).get("session_id") if bill_obj else None
         change_hash_for_cache = bill_obj.get("change_hash", "") if bill_obj else None
+        # Fallback: compute hash from last_action when LegiScan hash is missing
+        if not change_hash_for_cache and bill_obj:
+            action_str = f"{bill_obj.get('last_action_date', '')}|{bill_obj.get('last_action', '')}"
+            change_hash_for_cache = hashlib.md5(action_str.encode()).hexdigest()
 
         ai_json, ai_err, ai_model, ai_was_invalidated, ai_token_usage = build_ai_brief(
             bill_number=display_bill,
