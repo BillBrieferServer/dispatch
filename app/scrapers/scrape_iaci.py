@@ -13,6 +13,7 @@ Legislator scores: GET /wp-json/rds-bt50-scorecard/v1/legislators
   Response: list of legislator objects with score_sets array.
 """
 import argparse
+import re
 import logging
 import sys
 
@@ -40,6 +41,50 @@ POSITION_MAP = {
     "support, not scored": ("support", "Support, not Scored"),
     "monitor": ("monitor", "Monitor"),
 }
+
+def _parse_amended_comment(comments: str) -> tuple | None:
+    """Parse AMENDED multi-line comments to extract the effective position.
+
+    Format:
+        AMENDED
+        Formerly: Oppose, not Scored
+        As Amended: Monitor
+
+    'No Change to Position' means keep the Formerly position.
+    Returns (position, position_detail) or None if unparseable.
+    """
+    lines = [l.strip() for l in comments.replace('\r\n', '\n').split('\n') if l.strip()]
+    formerly = None
+    as_amended = None
+    for line in lines:
+        m = re.match(r'Formerly:\s*(.+)', line, re.IGNORECASE)
+        if m:
+            formerly = m.group(1).strip().rstrip('.')
+        m = re.match(r'As Amended:\s*(.+)', line, re.IGNORECASE)
+        if m:
+            as_amended = m.group(1).strip().rstrip('.')
+
+    if not formerly and not as_amended:
+        return None
+
+    # Determine effective position text
+    if as_amended and as_amended.lower() != 'no change to position':
+        effective = as_amended
+    elif formerly:
+        effective = formerly
+    else:
+        return None
+
+    # Look up in POSITION_MAP
+    key = effective.lower().rstrip('. ')
+    if key in POSITION_MAP:
+        position, base_detail = POSITION_MAP[key]
+        detail = f"{base_detail} (Amended)"
+        return position, detail
+
+    return None
+
+
 
 
 def scrape_bills(dry_run=False):
@@ -83,6 +128,15 @@ def scrape_bills(dry_run=False):
             comments_key = comments.lower().rstrip(". ")
             if comments_key in POSITION_MAP:
                 position, position_detail = POSITION_MAP[comments_key]
+            elif 'amended' in comments_key:
+                parsed = _parse_amended_comment(comments)
+                if parsed:
+                    position, position_detail = parsed
+                    logger.info(f"IACI: Amended bill {normalized} resolved to {position} ({position_detail})")
+                else:
+                    logger.warning(f"IACI: Could not parse amended comment {comments!r} for {normalized}")
+                    position = "monitor"
+                    position_detail = comments
             elif comments:
                 logger.warning(f"IACI: Unknown position comment {comments!r} for {normalized}")
                 position = "monitor"
