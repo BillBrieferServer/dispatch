@@ -473,14 +473,12 @@ def format_full_briefer(
                     # Strip redundant org prefix from detail (e.g. "IFF: +3" -> "+3")
                     if detail and org and detail.startswith(org + ":"):
                         detail = detail[len(org)+1:].strip()
-                    # Handle scored positions (e.g. IACI "Support and Score" -> "support and score — +1")
+                    # Handle scored positions (e.g. IACI "Support and Score" -> "support (+1)")
                     if detail and re.search(r'and\s+score', detail, re.IGNORECASE):
-                        # Scored vote — append per-bill score based on position direction
                         score_val = "+1" if position.lower().startswith("support") else "-1"
-                        line = f"{org}: {position} and score"
-                        detail = score_val
+                        line = f"{org}: {position} ({score_val})"
+                        detail = None
                     elif detail and re.search(r'not\s+scored', detail, re.IGNORECASE):
-                        # Not scored — show that context, no numeric score
                         line = f"{org}: {position}, not scored"
                         detail = None
                     elif detail and detail.lower().strip() in (position.lower().strip(), 'monitor', 'neutral', 'under review', 'held in committee', 'tag', 'tracking'):
