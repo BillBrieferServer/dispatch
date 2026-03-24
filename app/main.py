@@ -569,9 +569,9 @@ async def group_watch(request: Request):
             position_orgs = sorted(set(
                 org for bp in bill_positions for org in bp['positions'].keys()
             ))
-            org_order = ['IFF', 'IACI', 'CVI', 'ICL', 'CAI', 'ACLU Idaho', 'IWF']
+            org_order = ['IFF', 'IACI', 'IFBF', 'CVI', 'ICL', 'ACLU Idaho', 'IWF']
             position_orgs = [o for o in org_order if o in position_orgs] + \
-                            [o for o in position_orgs if o not in org_order]
+                            [o for o in position_orgs if o not in org_order and o != 'CAI']
     finally:
         conn.close()
 
