@@ -75,8 +75,10 @@
       {% set detail = pdata.get('detail', '') if pdata is mapping else '' %}
       {% set score = '' %}
       {% if detail and detail.startswith(org ~ ': ') %}{% set score = detail[detail.index(': ')+2:] %}{% elif detail and 'and Score' in detail %}{% set score = '+1' if pos == 'support' else '-1' %}{% endif %}
-      <td style="text-align:center;" class="{% if pos == 'support' %}pos-support{% elif pos == 'oppose' %}pos-oppose{% elif pos in ('monitor','tag') %}pos-monitor{% elif pos == 'neutral' %}pos-neutral{% endif %}">
-        {% if score %}{{ score }}{% elif pos == 'support' %}Support{% elif pos == 'oppose' %}Oppose{% elif pos == 'monitor' %}Monitor{% elif pos == 'tag' %}Track{% elif pos == 'neutral' %}Neutral{% endif %}
+      {% set cai_abbr = '' %}
+      {% if org == 'CAI' and detail %}{% if 'Due Process' in detail %}{% set cai_abbr = 'DP' %}{% elif 'Education Freedom' in detail %}{% set cai_abbr = 'EF' %}{% elif 'Election Integrity' in detail %}{% set cai_abbr = 'EI' %}{% elif 'Medical Freedom' in detail %}{% set cai_abbr = 'MF' %}{% elif 'Power to Feds' in detail %}{% set cai_abbr = 'FP' %}{% elif 'Self Defense' in detail %}{% set cai_abbr = 'SD' %}{% elif 'Speech' in detail %}{% set cai_abbr = 'SA' %}{% elif 'Wasteful' in detail %}{% set cai_abbr = 'WS' %}{% elif 'Wise' in detail %}{% set cai_abbr = 'WL' %}{% endif %}{% endif %}
+      <td style="text-align:center;" class="{% if pos == 'support' %}pos-support{% elif pos == 'oppose' %}pos-oppose{% elif pos in ('monitor','tag') %}pos-monitor{% elif pos == 'neutral' %}pos-neutral{% endif %}" {% if cai_abbr %}title="{{ detail }}"{% endif %}>
+        {% if cai_abbr %}Track: {{ cai_abbr }}{% elif score %}{{ score }}{% elif pos == 'support' %}Support{% elif pos == 'oppose' %}Oppose{% elif pos == 'monitor' %}Monitor{% elif pos == 'tag' %}Track{% elif pos == 'neutral' %}Neutral{% endif %}
       </td>
       {% endfor %}
     </tr>
