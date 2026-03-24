@@ -23,8 +23,8 @@
     .topic-cell { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     tbody tr:nth-child(even) { background:#f0f0f0; }
     tr:hover { background:#f0f0f0; }
-    .sort-arrow { font-size:0.7em; opacity:0.4; }
-    th.sorted .sort-arrow { opacity:1; }
+    .sort-arrow { font-size:0.75em; opacity:0.5; color:#999; margin-left:2px; }
+    th.sorted .sort-arrow { opacity:1; color:#333; }
 
     .pos-support { color:#1a7a1a; font-weight:600; }
     .pos-oppose { color:#c02020; font-weight:600; }
@@ -58,10 +58,10 @@
   <div class="table-wrap">
   <table id="positions-table">
     <thead><tr>
-      <th data-col="bill" data-type="text">Bill <span class="sort-arrow"></span></th>
-      <th data-col="topic" data-type="text" class="hide-mobile">Topic <span class="sort-arrow"></span></th>
+      <th data-col="bill" data-type="text">Bill <span class="sort-arrow">⇅</span></th>
+      <th data-col="topic" data-type="text" class="hide-mobile">Topic <span class="sort-arrow">⇅</span></th>
       {% for org in position_orgs %}
-      <th data-col="org-{{ org }}" data-type="text" style="text-align:center;">{{ "ACLU" if org == "ACLU Idaho" else org }} <span class="sort-arrow"></span></th>
+      <th data-col="org-{{ org }}" data-type="text" style="text-align:center;">{{ "ACLU" if org == "ACLU Idaho" else org }} <span class="sort-arrow">⇅</span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
@@ -113,7 +113,7 @@ document.querySelectorAll('th[data-col]').forEach(function(th) {
     var asc = !th.classList.contains('sorted-asc');
     table.querySelectorAll('th').forEach(function(h) {
       h.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
-      h.querySelector('.sort-arrow').textContent = '';
+      h.querySelector('.sort-arrow').textContent = '⇅';
     });
     th.classList.add('sorted', asc ? 'sorted-asc' : 'sorted-desc');
     th.querySelector('.sort-arrow').textContent = asc ? '\u2191' : '\u2193';
