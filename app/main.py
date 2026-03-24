@@ -524,7 +524,7 @@ async def group_watch(request: Request):
 
             # Get all positions
             cur.execute("""
-                SELECT ap.bill_id, ap.org_name, ap.position
+                SELECT ap.bill_id, ap.org_name, ap.position, ap.position_detail
                 FROM dispatch.advocacy_positions ap
                 JOIN idaho.bills b ON b.bill_id = ap.bill_id
                 WHERE b.legiscan_session_id = 2246
@@ -534,7 +534,10 @@ async def group_watch(request: Request):
                 bid = r['bill_id']
                 if bid not in pos_map:
                     pos_map[bid] = {}
-                pos_map[bid][r['org_name']] = r['position']
+                pos_map[bid][r['org_name']] = {
+                    'position': r['position'],
+                    'detail': r.get('position_detail') or '',
+                }
 
             bill_positions = []
             for row in bills_data:
@@ -548,8 +551,8 @@ async def group_watch(request: Request):
                         sponsor = sponsor[len(pfx):]
                 chamber = 'House' if bill_number.startswith('H') else 'Senate'
                 positions = pos_map.get(bill_id, {})
-                iff_pos = positions.get('IFF', '')
-                iaci_pos = positions.get('IACI', '')
+                iff_pos = (positions.get('IFF') or {}).get('position', '')
+                iaci_pos = (positions.get('IACI') or {}).get('position', '')
                 divergence = bool(iff_pos and iaci_pos and {iff_pos, iaci_pos} == {'support', 'oppose'})
 
                 bill_positions.append({

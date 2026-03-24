@@ -70,9 +70,11 @@
       <td><a href="https://legislature.idaho.gov/sessioninfo/2026/legislation/{{ bp.bill_number }}/" target="_blank" style="color:#111;text-decoration:none;border-bottom:1px dotted #999;">{{ bp.bill_number }}</a></td>
       <td class="hide-mobile topic-cell" title="{{ bp.topic }}">{{ bp.topic }}</td>
       {% for org in position_orgs %}
-      {% set pos = bp.positions.get(org, '') %}
+      {% set pdata = bp.positions.get(org, {}) %}
+      {% set pos = pdata.get('position', '') if pdata is mapping else pdata %}
+      {% set detail = pdata.get('detail', '') if pdata is mapping else '' %}
       <td style="text-align:center;" class="{% if pos == 'support' %}pos-support{% elif pos == 'oppose' %}pos-oppose{% elif pos in ('monitor','tag') %}pos-monitor{% elif pos == 'neutral' %}pos-neutral{% endif %}">
-        {% if pos == 'support' %}Support{% elif pos == 'oppose' %}Oppose{% elif pos == 'monitor' %}Monitor{% elif pos == 'tag' %}Track{% elif pos == 'neutral' %}Neutral{% endif %}
+        {% if pos == 'support' %}Support{% elif pos == 'oppose' %}Oppose{% elif pos == 'monitor' %}Monitor{% elif pos == 'tag' %}Track{% elif pos == 'neutral' %}Neutral{% endif %}{% if detail and 'and Score' in detail %} <span style="font-size:0.8em;opacity:0.7">({% if pos == 'support' %}+1{% elif pos == 'oppose' %}-1{% endif %})</span>{% elif detail and detail.startswith(org + ': ') %} <span style="font-size:0.8em;opacity:0.7">({{ detail[detail.index(': ')+2:] }})</span>{% endif %}
       </td>
       {% endfor %}
     </tr>
