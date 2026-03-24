@@ -58,7 +58,7 @@
       <th data-col="district" data-type="num">District <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
       <th data-col="chamber" data-type="text" class="hide-mobile">Chamber <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
       {% for org in score_orgs %}
-      <th data-col="score-{{ org }}" data-type="num" style="text-align:center;">{{ org }} <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
+      <th data-col="score-{{ org }}" data-type="num" style="text-align:center;">{{ "ACLU" if org == "ACLU Idaho" else org }} <span class="sort-hint">&#x21C5;</span><span class="sort-arrow"></span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
