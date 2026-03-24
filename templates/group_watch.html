@@ -61,7 +61,7 @@
       <th data-col="bill" data-type="text">Bill <span class="sort-arrow"></span></th>
       <th data-col="topic" data-type="text" class="hide-mobile">Topic <span class="sort-arrow"></span></th>
       {% for org in position_orgs %}
-      <th data-col="org-{{ org }}" data-type="text" style="text-align:center;">{{ org }} <span class="sort-arrow"></span></th>
+      <th data-col="org-{{ org }}" data-type="text" style="text-align:center;">{{ "ACLU" if org == "ACLU Idaho" else org }} <span class="sort-arrow"></span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
