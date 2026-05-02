@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 from app.services.prompt_builder import get_system_prompt
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514").strip()
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip()
 ANTHROPIC_MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "4000"))
 
 

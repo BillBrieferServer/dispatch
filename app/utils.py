@@ -61,6 +61,7 @@ USAGE_LOG_FIELDS = [
 TOKEN_COSTS = {
     "anthropic": {
         "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+        "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
         "claude-sonnet-4-0": {"input": 3.00, "output": 15.00},
         "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
         "default": {"input": 3.00, "output": 15.00},
