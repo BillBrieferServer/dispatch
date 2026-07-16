@@ -236,12 +236,15 @@ def _build_momentum_context(bill_id: int) -> str:
                 # Reading calendar status
                 reading_cal = None
                 if bill_number:
+                    _cal_year = int(os.getenv("SESSION_YEAR", "").strip()
+                                    or os.getenv("LEGISCAN_SESSION_YEAR", "").strip()
+                                    or datetime.now().year)
                     cur.execute("""
                         SELECT reading_type, chamber, calendar_date
                         FROM idaho.reading_calendars
-                        WHERE bill_number = %s
+                        WHERE bill_number = %s AND session_year = %s
                         ORDER BY calendar_date DESC LIMIT 1
-                    """, (bill_number,))
+                    """, (bill_number, _cal_year))
                     reading_cal = cur.fetchone()
 
                 # Co-sponsor count
